@@ -20,6 +20,12 @@ namespace Combolands.Mod.Autoplay
         public int Tag;
         public int[] Categories;
 
+        // Scales everything this piece scores. One for a fresh building; higher once
+        // it has been levelled.
+        public float Multiplier;
+
+        internal static readonly int[] NoTags = new int[0];
+
         // The game's own range shape, from Grid.GetFilledCircle:
         //
         //     dx*dx + dy*dy < r*r + r
@@ -99,6 +105,29 @@ namespace Combolands.Mod.Autoplay
         // How much hurry the run is in. Defaults to "unknown", which behaves as
         // "play normally" - the tests and the scouting path both rely on that.
         public Pace Pace = Pace.Unknown;
+
+        // --- the simulator, when there is one ---------------------------------------
+        //
+        // When these are set, Value stops approximating and computes: the exact
+        // change in the week's score, times the weeks left to collect it. They are
+        // null when no rule set has been dumped out of the game, and everything falls
+        // back to the proximity valuation - see sim/Live.cs.
+        //
+        // They live on the snapshot rather than in a static because a snapshot is the
+        // unit of "the board as it was when we looked", and the simulated board has
+        // to be that same board or the two halves of a comparison disagree.
+        public Sim.Rules SimRules;
+        public Sim.Map SimMap;
+        public Sim.Policy SimPolicy;
+        public Sim.Situation SimSituation;
+
+        // The tag being placed, and the tags the bar is also offering. The second is
+        // what a one-ply lookahead is allowed to plan around: crediting a placement
+        // for a follow-up the run may never draw would be wishful thinking.
+        public int CandidateTag;
+        public int[] AlsoOffered = new int[0];
+
+        public bool Simulated { get { return SimRules != null && SimMap != null; } }
 
         // The GamePieceCategory an active "score N points with X" council request is
         // asking for, or -1. It is on the board rather than in Value because it is a

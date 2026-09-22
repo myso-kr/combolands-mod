@@ -427,6 +427,71 @@ namespace Combolands.Anchors
                 Members = new[] { Member.Property("Tile") },
             },
 
+            // --- the simulator ----------------------------------------------------
+            //
+            // Read once, into a rule set that is then used with no game present. A
+            // break here does not stop autoplay; it stops the next dump, and the mod
+            // falls back to the proximity valuation saying so in the log.
+
+            new Anchor
+            {
+                Id = "M1", What = "the score itself",
+                Type = Behaviour,
+                Bound = false,
+                // Reproduced in sim/Preview.cs, never called - calling it needs a live
+                // building on a live tile, which is the thing a planner cannot afford.
+                // So it can keep its name, change its arithmetic, and every check here
+                // passes while every number the helper prints is quietly wrong.
+                Why = "reproduced rather than called - only reading GetScorePreview answers it",
+            },
+            new Anchor
+            {
+                Id = "M2", What = "which neighbourhood",
+                Type = Behaviour,
+                Members = new[] { Member.Field("_scorePreviewMode") },
+            },
+            new Anchor
+            {
+                Id = "M3", What = "how often it pays",
+                Type = Behaviour,
+                Members = new[] { Member.Field("_cooldownParam") },
+            },
+            new Anchor
+            {
+                Id = "M4", What = "what it pays for",
+                Type = Behaviour,
+                Members = new[]
+                {
+                    Member.Method("GetBehaviourTargetTags", 0),
+                    Member.Method("GetBehaviourTargetCategories", 0),
+                    Member.Method("GetBehaviourTargetRarities", 0),
+                    Member.Method("GetBehaviourTargetTileTypes", 0),
+                    Member.Method("GetScoreForTag", 2),
+                    Member.Method("GetScoreForRarity", 1),
+                    Member.Method("GetScoreForTileType", 1),
+                    Member.Method("GetScoreParam", 1),
+
+                    // The struct the first dump could not read. Fields, not an enum,
+                    // and the reason every category in the game scored zero.
+                    Member.Field("GamePieceCategory", on: "Entities.TargetCategory"),
+                    Member.Field("Score", on: "Entities.TargetCategory"),
+                },
+            },
+            new Anchor
+            {
+                Id = "M5", What = "the multiplier",
+                Type = "Entities.GamePiece",
+                Members = new[] { Member.Property("Multiplier") },
+            },
+            new Anchor
+            {
+                Id = "M6", What = "the same-type rule, statically",
+                // The FIELD. The method of the same name ends at it, and everything
+                // above that return is an exemption granted by run state.
+                Type = Behaviour,
+                Members = new[] { Member.Field("_hasRangePlacementRestriction") },
+            },
+
             // --- autoplay's screens -----------------------------------------------
 
             new Anchor

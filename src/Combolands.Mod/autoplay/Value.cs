@@ -1,4 +1,6 @@
-﻿namespace Combolands.Mod.Autoplay
+﻿using System;
+
+namespace Combolands.Mod.Autoplay
 {
     // What one placement on one tile is worth.
     //
@@ -61,6 +63,13 @@
 
         internal struct Breakdown
         {
+            // Set only on the simulated path: the exact change in one week's score,
+            // and that change times the weeks left to collect it. These are points,
+            // not an index, which is why the overlay can print them.
+            public double PerWeek;
+            public double OverMilestone;
+            public bool Simulated;
+
             public int Covers;
             public int CoveredBy;
             public int Adjacent;
@@ -75,6 +84,14 @@
 
         internal static Breakdown Score(Snapshot board, int x, int y)
         {
+            // When the game's own rules have been read out, stop approximating.
+            //
+            // Everything below this line is a proxy for the one question that
+            // matters - how many points does this tile add - and the simulator
+            // answers it outright. The proxies stay for the case where no rule set
+            // has been dumped, which is a worse answer rather than none.
+            if (board.Simulated) return Simulate(board, x, y, withLookahead: true);
+
             var result = default(Breakdown);
             var candidate = board.Candidate;
             candidate.X = x;
@@ -144,6 +161,35 @@
             for (int i = 0; i < candidate.Categories.Length; i++)
                 if (candidate.Categories[i] == board.QuestCategory) return true;
             return false;
+        }
+
+        // Points only, no lookahead. The first pass of a two-pass ranking: see
+        // Plan.Best for why the expensive half is not run on every tile.
+        internal static Breakdown Quick(Snapshot board, int x, int y)
+        {
+            return board.Simulated ? Simulate(board, x, y, withLookahead: false) : Score(board, x, y);
+        }
+
+        // The computed answer: the game's own arithmetic, run on a copy of the board.
+        private static Breakdown Simulate(Snapshot board, int x, int y, bool withLookahead)
+        {
+            var features = Sim.Policy.Measure(board.SimRules, board.SimMap, board.CandidateTag,
+                                              x, y, board.SimSituation,
+                                              withLookahead ? board.AlsoOffered : Piece.NoTags);
+
+            return new Breakdown
+            {
+                Simulated = true,
+                PerWeek = features.DeltaPerWeek,
+                OverMilestone = features.Now,
+
+                // Still filled in, because the overlay and the panel read them and a
+                // player looking at a tile wants to know WHY, not only how much.
+                TargetScore = (int)Math.Round(features.DeltaPerWeek),
+                Room = (int)Math.Round(features.Room / Math.Max(1.0, board.SimSituation.NeededPerWeek)),
+
+                Total = (float)board.SimPolicy.Value(features),
+            };
         }
 
         // Eight-neighbourhood. The game calls this "adjacent" and includes diagonals -

@@ -28,6 +28,7 @@ namespace Combolands.Mod.Autoplay
         internal static List<Candidate> Best(Snapshot board, int count, int separation = 0)
         {
             var all = new List<Candidate>(256);
+            var simulated = board.Simulated;
 
             int minX = board.SearchMinX < 0 ? 0 : board.SearchMinX;
             int minY = board.SearchMinY < 0 ? 0 : board.SearchMinY;
@@ -44,9 +45,37 @@ namespace Combolands.Mod.Autoplay
                     // good tiles are illegal would show five bad ones.
                     if (!Rules.Allows(board, x, y)) continue;
 
-                    var score = Value.Score(board, x, y);
+                    var score = simulated ? Value.Quick(board, x, y) : Value.Score(board, x, y);
                     all.Add(new Candidate { X = x, Y = y, Score = score });
                 }
+
+            // Two passes, when the simulator is in use.
+            //
+            // Scoring a tile costs a pass over the buildings that can see it. Working
+            // out what a tile SETS UP costs that again for every follow-up on the bar
+            // and every tile near it - about fifty times as much - and on a full board
+            // that is millions of operations for a shortlist of eight.
+            //
+            // So the lookahead is run only on the tiles that could plausibly win. A
+            // tile the points term already places outside the top few dozen is not
+            // going to be rescued by what it sets up, and the two passes agree on the
+            // answer while the second one costs a fiftieth of what one pass would.
+            if (simulated)
+            {
+                all.Sort(Compare);
+
+                var deep = Math.Max(count * 4, 48);
+                if (deep > all.Count) deep = all.Count;
+
+                for (int i = 0; i < deep; i++)
+                {
+                    var candidate = all[i];
+                    candidate.Score = Value.Score(board, candidate.X, candidate.Y);
+                    all[i] = candidate;
+                }
+
+                if (all.Count > deep) all.RemoveRange(deep, all.Count - deep);
+            }
 
             // Ties are broken by position so the same board always produces the same
             // list. A shortlist that reshuffles every frame is unreadable even when

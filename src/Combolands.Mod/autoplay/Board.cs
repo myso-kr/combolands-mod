@@ -26,6 +26,7 @@ namespace Combolands.Mod.Autoplay
         private static PropertyInfo _tileX, _tileY, _tileEmpty, _tileCantBuild, _tileType;
         private static PropertyInfo _buildingList;
         private static PropertyInfo _pieceX, _pieceY, _pieceRange, _pieceTag, _pieceCategories;
+        private static PropertyInfo _pieceMultiplier;
 
         internal static bool Available
         {
@@ -47,6 +48,7 @@ namespace Combolands.Mod.Autoplay
             if (board == null) return null;
 
             board.Candidate = ToPiece(candidatePiece);
+            board.CandidateTag = board.Candidate.Tag;
 
             // The same-type rule is the candidate's own property, not the tile's, so
             // it is asked once per refresh. Honouring the cheat toggle here keeps the
@@ -68,6 +70,7 @@ namespace Combolands.Mod.Autoplay
             if (board == null) return null;
 
             board.Candidate = offer.Piece;
+            board.CandidateTag = offer.Piece.Tag;
             board.TargetTagScores = offer.TagScores;
             board.TargetCategoryScores = offer.CategoryScores;
             board.MaxTargetScore = offer.MaxScore;
@@ -158,7 +161,101 @@ namespace Combolands.Mod.Autoplay
             board.CorruptedObeliskTag = Tag("CorruptedObelisk");
             board.Pace = ReadPace();
             board.QuestCategory = Quests.TargetCategory();
+            AttachSimulator(board);
             return board;
+        }
+
+        // Hand the snapshot a copy of itself that the simulator can play with.
+        //
+        // Everything needed is already read: tile types, buildability, and every
+        // building with its tag and position. The one addition is each building's
+        // multiplier, which scales its score directly and so cannot be assumed to be
+        // one - a board of levelled-up buildings scores several times what the same
+        // board of fresh ones does.
+        //
+        // Does nothing when no rule set has been dumped, and the snapshot then falls
+        // back to the proximity valuation - see sim/Live.cs.
+        private static void AttachSimulator(Snapshot board)
+        {
+            if (!Sim.Live.Ready) return;
+
+            Log.Guard("sim.attach", () =>
+            {
+                var placed = new List<Sim.Live.Placed>(board.Buildings.Count);
+                var occupied = new HashSet<long>();
+
+                for (int i = 0; i < board.Buildings.Count; i++)
+                {
+                    var piece = board.Buildings[i];
+                    occupied.Add(((long)piece.X << 32) | (uint)piece.Y);
+
+                    placed.Add(new Sim.Live.Placed
+                    {
+                        Tag = piece.Tag,
+                        X = piece.X,
+                        Y = piece.Y,
+                        Multiplier = piece.Multiplier,
+                    });
+                }
+
+                // A tile that cannot be built on and has no building on it is
+                // terrain: a rock, a cliff, the edge of the playable area. That is
+                // the only distinction the snapshot does not already carry, and it
+                // falls out of the two it does.
+                var board_ = board;
+                board.SimMap = Sim.Live.Build(board.Width, board.Height,
+                    (x, y) => board_.TileTypes[y * board_.Width + x],
+                    (x, y) => !board_.Buildable[y * board_.Width + x]
+                              && !occupied.Contains(((long)x << 32) | (uint)y),
+                    placed);
+
+                board.SimRules = Sim.Live.Rules;
+                board.SimPolicy = Sim.Live.Policy;
+                board.SimSituation = ReadSituation();
+                board.AlsoOffered = OtherOffers(board.CandidateTag);
+            });
+        }
+
+        // What else the bar is offering, which is what a one-ply lookahead is allowed
+        // to plan around. Crediting a placement for a follow-up the run may never
+        // draw would be wishful thinking, and the bar is the only honest answer to
+        // "what could come next".
+        private static int[] OtherOffers(int except)
+        {
+            if (!Offers.Available) return Piece.NoTags;
+
+            var offers = Log.Guard("sim.offers", Offers.Current, null);
+            if (offers == null || offers.Count == 0) return Piece.NoTags;
+
+            var tags = new List<int>(offers.Count);
+            for (int i = 0; i < offers.Count; i++)
+            {
+                var tag = offers[i].Piece.Tag;
+                if (tag != except && !tags.Contains(tag)) tags.Add(tag);
+            }
+
+            return tags.ToArray();
+        }
+
+        // The same three numbers Pace reads, in the shape the simulator wants. Kept
+        // separate rather than merged because Pace is pure and linked into the tests,
+        // and Situation belongs to the simulator.
+        private static Sim.Situation ReadSituation()
+        {
+            const string Game = "GameState.GameController";
+            const string Score = "GameState.ScoreController";
+            const string Stats = "GameState.RunStatsController";
+
+            if (!Singletons.Exists(Game) || !Singletons.Exists(Score))
+                return Sim.Situation.From(0, 1, 1, 0);
+
+            var required = Singletons.Read(Game, "ScoreRequired", 0L);
+            var score = Singletons.Read(Score, "Score", 0L);
+            var weeks = Singletons.Read(Game, "WeeksRemaining", 0);
+            var lastWeek = Singletons.Exists(Stats) ? Singletons.Read(Stats, "BestScore", 0L) : 0L;
+
+            return Sim.Situation.From(score, required <= 0 ? 1 : required,
+                                      weeks <= 0 ? 1 : weeks, lastWeek);
         }
 
         // How far behind the milestone the run is. Everything here is public on the
@@ -197,12 +294,25 @@ namespace Combolands.Mod.Autoplay
                 Range = (int)_pieceRange.GetValue(piece, null),
                 Tag = Convert.ToInt32(_pieceTag.GetValue(piece, null)),
                 Categories = Categories(piece),
+                Multiplier = Multiplier(piece),
             };
         }
 
         // GamePiece.Categories is a HashSet<GamePieceCategory>. Naming that enum here
         // would mean referencing Assembly-CSharp, and the valuation only needs to
         // know whether two pieces share a member, so the values come across as ints.
+        // Scales the building's whole score, so it is not something to assume. A
+        // levelled board pays several times what the same board of fresh buildings
+        // does, and a plan built on multiplier-one would rank a fresh building beside
+        // a levelled one as equals.
+        private static float Multiplier(object piece)
+        {
+            if (_pieceMultiplier == null) return 1f;
+
+            try { return Convert.ToSingle(_pieceMultiplier.GetValue(piece, null)); }
+            catch { return 1f; }
+        }
+
         private static int[] Categories(object piece)
         {
             var set = _pieceCategories.GetValue(piece, null) as IEnumerable;
@@ -367,6 +477,7 @@ namespace Combolands.Mod.Autoplay
             _pieceRange = Anchors.Property(pieceType, "Range");
             _pieceTag = Anchors.Property(pieceType, "Tag");
             _pieceCategories = Anchors.Property(pieceType, "Categories");
+            _pieceMultiplier = Reflect.Property(pieceType, "Multiplier");
 
             var ok = _gridWidth != null && _gridHeight != null && _getTile != null
                   && _tileEmpty != null && _tileCantBuild != null && _buildingList != null

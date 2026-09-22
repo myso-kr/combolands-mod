@@ -302,7 +302,13 @@ namespace Combolands.Mod.Autoplay
         private static void Label(Rect tile, Marked mark)
         {
             var candidate = mark.Candidate;
-            bool hasTargets = candidate.Score.TargetHits >= 0.05f;
+
+            // Simulated tiles carry real points, so say points. "x3 targets" was the
+            // best a proximity valuation could offer; "+840/wk" is what the tile is
+            // actually worth and is checkable against the game's own display.
+            bool hasTargets = candidate.Score.Simulated
+                ? System.Math.Abs(candidate.Score.PerWeek) >= 1
+                : candidate.Score.TargetHits >= 0.05f;
             string head = mark.Offer < 0
                 ? "#" + (mark.Rank + 1)
                 : OfferLetters[mark.Offer] + (mark.Rank + 1).ToString();
@@ -315,7 +321,21 @@ namespace Combolands.Mod.Autoplay
             if (!hasTargets) return;
 
             var note = new Rect(tile.x, tile.y + tile.height * 0.42f, tile.width, tile.height * 0.52f);
-            Shadowed(note, "x" + candidate.Score.TargetHits.ToString("0.#"), _noteStyle);
+            Shadowed(note, candidate.Score.Simulated
+                ? Points(candidate.Score.PerWeek)
+                : "x" + candidate.Score.TargetHits.ToString("0.#"), _noteStyle);
+        }
+
+        // Thousands are what this game deals in by the third milestone, and five
+        // digits on a tile the size of a thumbnail is unreadable.
+        private static string Points(double points)
+        {
+            var sign = points < 0 ? "-" : "+";
+            var size = System.Math.Abs(points);
+
+            if (size >= 1000000) return sign + (size / 1000000).ToString("0.#") + "M";
+            if (size >= 1000) return sign + (size / 1000).ToString("0.#") + "k";
+            return sign + size.ToString("0");
         }
 
         // Tiles sit on grass, sand, ocean and forest, so white alone is illegible
@@ -387,8 +407,16 @@ namespace Combolands.Mod.Autoplay
             if (_shown.Count == 0) return "on - nothing to suggest (hold a building)";
 
             var best = _shown[0];
+
+            if (best.Score.Simulated)
+                return string.Format(
+                    "{0} suggestions.  #1 at ({1},{2}):  {3} a week, {4} over the milestone.  [simulated]",
+                    _shown.Count, best.X, best.Y,
+                    Points(best.Score.PerWeek), Points(best.Score.OverMilestone));
+
             return string.Format(
-                "{0} suggestions.  #1 at ({1},{2}):  x{3:0.#} targets,  {4} adjacent,  {5} shared,  room {6}",
+                "{0} suggestions.  #1 at ({1},{2}):  x{3:0.#} targets,  {4} adjacent,  {5} shared,  room {6}"
+                + "  [estimated - no rule set dumped]",
                 _shown.Count, best.X, best.Y, best.Score.TargetHits,
                 best.Score.Adjacent, best.Score.Shared, best.Score.Room);
         }

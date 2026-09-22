@@ -80,6 +80,14 @@ autoplay/Pace.cs       how much hurry the milestone is in. Pure
 autoplay/Screens.cs    the screens a run stops on, and how to get past them
 autoplay/Shop.cs       whether to go in, what to buy, when to leave
 autoplay/Quests.cs     which council request to take, and collecting its reward
+autoplay/sim/Rules.cs  what the game knows about a building, with no game
+autoplay/sim/Map.cs    a board placement can be tried on and taken back off. Pure
+autoplay/sim/Preview.cs  GetScorePreview, reproduced. Pure
+autoplay/sim/Evaluate.cs what a placement is worth, in points. Pure
+autoplay/sim/Policy.cs   the weights the trainer fits. Pure
+autoplay/sim/Milestone.cs a whole milestone played out - the training episode. Pure
+autoplay/sim/Dump.cs   reading the rules out of the game, once
+autoplay/sim/Live.cs   the simulator attached to a running game
 autoplay/Items.cs      spending what the run has picked up
 autoplay/Offers.cs     describing an offered building, with no instance to ask
 autoplay/Supervisor.cs the loop: WHEN to act, never what
@@ -92,6 +100,12 @@ neither is testable. Split, `Value.cs` takes a plain board snapshot and CI can r
 
 `Overlay.cs` never writing is what makes stage 1 of the play helper safe to ship
 before the valuation is any good.
+
+Everything under `sim/` except `Dump.cs` and `Live.cs` is pure as well, and for a
+second reason: `tools/train` links those files and runs tens of thousands of
+simulated milestones on a machine that has never seen the game. `Dump.cs` reads the
+rules out of a running game and `Live.cs` attaches the simulator to one; those two
+are the boundary, and nothing else in `sim/` may touch Unity.
 
 `Snapshot.cs`, `Rules.cs`, `Value.cs` and `Plan.cs` carry **no Unity and no game
 types**, which is what lets `tests/` link them as source and run them where neither

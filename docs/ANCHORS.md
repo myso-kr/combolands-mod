@@ -216,6 +216,50 @@ that is why it is used at all. The obvious alternative,
 refactor and quietly stop doing half the job. A missing `PlaceCurrentBuilding` stops
 autoplay dead, which is the failure worth having.
 
+## The simulator
+
+The helper stopped approximating the score and started computing it, which means a
+new group of anchors: the ones the rule dump reads. They are read **once**, into
+`generated/rules.json`, so a break here does not stop autoplay - it stops the *next*
+dump, and the mod falls back to the old proximity valuation with a line in the log
+saying so.
+
+| # | Anchor | Signature | Breaks | Fix in |
+|---|---|---|---|---|
+| M1 | the score itself | `_BuildingBehaviour.GetScorePreview(Building)` — the shape of it, which is reproduced rather than called | the simulator is wrong and nothing says so | `autoplay/sim/Preview.cs` |
+| M2 | which neighbourhood | `_GamePieceBehaviour._scorePreviewMode` (protected field) · `ScorePreviewMode` | every building is scored over the wrong tiles | `autoplay/sim/Dump.cs` |
+| M3 | how often it pays | `_GamePieceBehaviour._cooldownParam` (protected field) · `CountIsReadyToActivate` | slow buildings are overrated by their cooldown | `autoplay/sim/Dump.cs` |
+| M4 | what it pays for | `GetBehaviourTargetTags()` · `GetBehaviourTargetCategories()` · `GetBehaviourTargetRarities()` · `GetBehaviourTargetTileTypes()` · `GetScoreForTag` · `GetScoreForRarity` · `GetScoreForTileType` · `GetScoreParam` | **the dump is empty and the helper falls back** | `autoplay/sim/Dump.cs` |
+| M5 | the multiplier | `Entities.GamePiece.Multiplier` | a levelled board is valued as a fresh one | `autoplay/Board.cs` |
+| M6 | the same-type rule, statically | `_BuildingBehaviour._hasRangePlacementRestriction` (protected FIELD, not the method) | the simulator proposes tiles the game refuses | `autoplay/sim/Dump.cs` |
+
+M1 is the anchor this whole feature rests on, and it is the one no probe can defend.
+`GetScorePreview` is *reproduced* in `sim/Preview.cs`, not called - calling it would
+need a live building on a live tile, which is the thing a planner cannot afford. So
+the method can keep its name, change its arithmetic, and every check here will pass
+while every number the helper prints is quietly wrong. Re-read it after a game
+update; ten tests pin the reproduction, and nothing pins the original.
+
+Three of these were read wrong on the first attempt, all in ways that produced a
+plausible-looking rule set:
+
+**`GetBehaviourTargetCategories` returns `List<TargetCategory>`**, and
+`TargetCategory` is a struct of public fields — `{ TargetNumber, GamePieceCategory,
+Score }` — not an enum. Converting the element itself throws, so the first dump
+recorded a zero for every category in the game, which is most of the scoring in it.
+This is the same trap as P12 and it was fallen into the same way.
+
+**`HasRangePlacementRestriction` ends at a field.** Everything above that return is
+an exemption granted by run state — an equipped Fishing Net, an adjacent Plaza — so
+calling it with no building to ask about both throws and would have answered about a
+run rather than about a building. M6 reads the field.
+
+**Some buildings score without offering a preview.** Woodcutter pays eighty a tree
+over range two and sets no `_scorePreviewMode`, because it pays on a cooldown rather
+than every week. Reading that as "scores nothing" would drop some of the best pieces
+in the game, so the dump infers `InRange`, marks the piece `approximate`, and records
+`reachInferred` — a labelled guess rather than a silent one.
+
 ## Autoplay's screens
 
 | # | Anchor | Signature | Breaks | Fix in |

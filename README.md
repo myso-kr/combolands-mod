@@ -166,6 +166,20 @@ It always collects the reward. An unclaimed one is not a missed reward: the
 end-of-milestone routine disables input and waits on it forever, so a run that does
 not claim is a run that ends there.
 
+It does not guess what a placement is worth; it **computes** it. The game exposes
+`GetScorePreview`, a pure function giving what a building scores and off which
+tiles, and end of turn scores every building on the board - so a week is
+arithmetic, not a simulation of cascading triggers. Set `DumpRules = true` once and
+start a run, and the mod reads the scoring rules of all 167 buildings into
+`UserData/Combolands/generated/rules.json`; from then on the overlay prints real
+points (`+840/wk`) rather than a proximity index, and says `[simulated]` so you
+know which you are looking at. Without that file it falls back to the older
+estimate and says that too.
+
+The weights that trade off points now against points later are fitted rather than
+guessed, by `tools/train`, which plays simulated milestones with no game anywhere
+near it.
+
 It does **not** aim paints, stat mods or potions. Those apply through a code path
 that begins `if (InputKeys.LMBDown)`, and synthesising that would mean patching the
 left mouse button globally and firing every other click handler in the game. It
