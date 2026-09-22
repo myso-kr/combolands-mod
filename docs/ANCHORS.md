@@ -95,9 +95,10 @@ rasterises Hangul here is M1's job.
 | C8 | milestone | `GameState.MilestoneManager.DebugSetCurrentMilestone(int)`, `EndCurrentMilestoneEarly()` | milestone skip | `cheat/Run.cs` |
 | C9 | shop | `GameState.ShopManager.DebugShowShop()` | forcing the shop | `cheat/Run.cs` |
 
-C1 is a **dependency on a developer oversight**, not on an API. The cheat menu is
-debug code that shipped; a build that strips it takes the keyboard shortcuts with
-it. The widget is deliberately built on C2–C9 instead, so the loss is cosmetic.
+C1 is a **dependency on a developer oversight**, not on an API, and it works:
+`RightShift`+`C`+`L` arms it in the retail build, and `+G` and `+B` were confirmed
+in game on 2026-09-22. The cheat menu is debug code that shipped; a build that
+strips it takes the keyboard shortcuts with it. The widget is deliberately built on C2–C9 instead, so the loss is cosmetic.
 
 C5's `ignoreAllPlacementRestrictions` already being an optional parameter is why a
 prefix forcing it true is the whole feature. If that parameter is removed, the

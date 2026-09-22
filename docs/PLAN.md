@@ -290,10 +290,10 @@ during unattended runs.
 ## Milestones
 
 ```
-M0  Ground truth                                      DONE 2026-09-22 (partial)
+M0  Ground truth                                      DONE 2026-09-22
     [x] MelonLoader v0.7.3 boots 6000.0.66f2 MonoBleedingEdge and runs a mod
     [x] all 34 anchors in ANCHORS.md resolve in the live Mono domain, 0 broken
-    [ ] RightShift+C+L → RightShift+G in the running game   ← needs a human
+    [x] RightShift+C+L arms the shipped cheats; +G, +B confirmed in game
 
 M1  Hangul on screen                                  week 1
     Galmuri11.ttf → CreateFontAsset(path) → TMP_Settings.fallbackFontAssets
