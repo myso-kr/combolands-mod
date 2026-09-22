@@ -8,13 +8,19 @@
 {%- assign blurb = page.description | default: site.description -%}
 {%- assign here = site.url | append: site.baseurl | append: page.url -%}
 
-<title>{% if page.title and page.url != '/' %}{{ page.title }} — Combolands mod{% else %}{{ site.title }}{% endif %}</title>
+{%- comment -%}
+  Both home pages are home. /ko/ is the Korean front door, not a subpage of the
+  English one, and suffixing it gave "Combolands 모드 — Combolands mod".
+{%- endcomment -%}
+{%- assign home = false -%}
+{%- if page.url == '/' or page.url == '/ko/' -%}{%- assign home = true -%}{%- endif -%}
+<title>{% if home %}{{ name }}{% else %}{{ page.title }} — Combolands mod{% endif %}</title>
 <meta name="description" content="{{ blurb | strip_newlines | strip }}">
 <link rel="canonical" href="{{ here }}">
 
 <!-- Two languages of the same page. Each names the other and itself, which is what
      makes the pair a cluster rather than two pages that happen to look alike. -->
-{%- if page.url == '/' or page.url == '/ko/' %}
+{%- if home %}
 <link rel="alternate" hreflang="en" href="{{ site.url }}{{ site.baseurl }}/">
 <link rel="alternate" hreflang="ko" href="{{ site.url }}{{ site.baseurl }}/ko/">
 <link rel="alternate" hreflang="x-default" href="{{ site.url }}{{ site.baseurl }}/">
