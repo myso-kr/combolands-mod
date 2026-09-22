@@ -32,7 +32,7 @@ three fail in completely different ways.
 src/      inside the game       a thrown exception in a Harmony patch can
                                 silently disable the patch and nothing else
 tools/    run by hand           some need the game installed, some don't
-tests/    CI                    never sees the game
+tests/    CI                    never sees the game; anchors read metadata only
 ```
 
 A patch that throws does not crash the game. It leaves the feature quietly dead,
@@ -112,20 +112,32 @@ ignored, because it is the game's text.
 
 ## Testing what only the real game can show
 
-45 tests run against hand-written board fixtures and hand-written type hierarchies.
-That is the only way to state a case precisely — and also why none of them would
-notice a patch target drifting in the real game.
+Two suites, answering two different questions.
 
 ```
-dotnet test tests/Combolands.Mod.Tests        # no game, no Unity, ~30ms
+dotnet test tests/Combolands.Mod.Tests    # is the reasoning right?   no game, no Unity
+dotnet test tests/Combolands.Anchors      # is the game still there?  metadata only
 ```
 
-Two gaps are open and worth naming rather than implying away.
+The first runs against hand-written board fixtures and hand-written type
+hierarchies. That is the only way to state a case precisely — and also why none of
+them would notice a patch target drifting in the real game.
 
-**Nothing watches the anchors.** A test pointed at an installed `Assembly-CSharp.dll`
-that asserts every row of `ANCHORS.md` still resolves would catch a game update
-before a player does. The M0 probe does this from inside the running game; there is
-no offline version yet.
+The second closes exactly that gap. It reads an installed `Assembly-CSharp.dll` as
+metadata — nothing is loaded, constructed or executed — and checks every bound row
+of `ANCHORS.md` in one pass, naming the row that broke. With no game installed it
+**skips rather than passes**: a green run that checked nothing would be worse than
+no test at all, so CI sees yellow and says so. The checks that hold `ANCHORS.md` and
+the catalogue to each other still run there, since those need no game.
+
+Both link the plugin's own files as source rather than referencing the built
+assembly, for the same reason: the plugin targets net472 and binds Unity and
+MelonLoader, neither of which exists on a runner. The anchor suite links
+`Reflect.cs` in particular because binding a member *the way the mod binds it* is
+the whole point — a check written with `GetProperty` would pass on overloads the mod
+cannot actually resolve.
+
+One gap is still open, and it is worth naming rather than implying away.
 
 **Nothing watches the valuation's judgement.** Whether a suggestion is *good* is not
 a property any fixture can assert — every correction to it so far came from playing

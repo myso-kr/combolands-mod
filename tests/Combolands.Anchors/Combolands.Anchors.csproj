@@ -1,0 +1,44 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    Checks the anchor catalogue against a real Assembly-CSharp.dll WITHOUT launching
+    the game.
+
+    Everything the mod binds to is a type or member name inside the shipped
+    assemblies, so the whole catalogue can be answered by reading metadata. That
+    takes a second, runs on a laptop, and says which anchor broke - where the
+    alternative is starting the game, playing to the screen in question and reading
+    Latest.log.
+
+    Nothing here loads or executes game code. MetadataLoadContext reads the metadata
+    tables only, so no game type is ever constructed and no static initialiser runs.
+    Assembly-CSharp.dll is NOT in this repository and never will be; the test finds
+    an installed copy and skips when there is none.
+
+    Reflect.cs is linked in rather than reimplemented. The probe has to bind members
+    exactly the way the mod does at runtime, or it would answer a question nobody
+    asked - and the `new`-shadowing trap that Reflect exists for is precisely the
+    kind of thing this test should catch rather than reproduce.
+  -->
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <IsPackable>false</IsPackable>
+    <LangVersion>latest</LangVersion>
+    <Nullable>disable</Nullable>
+    <EnableDefaultCompileItems>false</EnableDefaultCompileItems>
+    <RootNamespace>Combolands.Anchors</RootNamespace>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Compile Include="**/*.cs" Exclude="bin/**;obj/**" />
+    <Compile Include="../../src/Combolands.Mod/Reflect.cs" Link="linked/Reflect.cs" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.11.1" />
+    <PackageReference Include="System.Reflection.MetadataLoadContext" Version="8.0.1" />
+    <PackageReference Include="xunit" Version="2.9.2" />
+    <PackageReference Include="xunit.runner.visualstudio" Version="2.8.2" />
+  </ItemGroup>
+
+</Project>

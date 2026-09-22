@@ -14,10 +14,27 @@ and where to fix it.
 Verified against Steam build `24989173` / game `v1.0.6` (Unity 6000.0.66f2,
 `Assembly-CSharp.dll` sha256 `f95343c0…c07253`). See `generated/fingerprint.json`.
 
-**Every row below resolved against the running game on 2026-09-22: 34 members, 0
-broken.** Not read off a decompiler — reflected out of the live Mono domain by the
+**Every bound row below resolved against `Assembly-CSharp.dll` on 2026-09-23, 0
+broken**, by `tests/Combolands.Anchors` — and against the running game on
+2026-09-22: 34 members, 0 broken. The live pass was not read off a decompiler — reflected out of the live Mono domain by the
 M0 probe, with `Assembly-CSharp`, `Assembly-CSharp-firstpass` and
 `Unity.TextMeshPro` all loaded before the first scene.
+
+## Bound, and merely observed
+
+Most rows below name a member the mod looks up by name at runtime, or compiles
+against. Those are *bound*: if one moves, something stops working, and
+`tests/Combolands.Anchors` says which one.
+
+A handful are marked **observed**. They are real dependencies that no signature can
+express — an asset layout, a grammar the linter reimplements, a formula copied
+rather than called, a claim about what one argument gates. Nothing looks them up, so
+nothing can check them, and a probe that passed would only be answering a question
+nobody asked. When the game updates, these are the ones a person has to read.
+
+Writing the offline test is what separated the two. Six rows turned out to describe
+members the mod never touched, including one, P3, that the valuation had deliberately
+replaced with its own arithmetic — and the row still claimed autoplay depended on it.
 
 ## Why these anchors are sturdier than a JS bundle's
 
@@ -38,8 +55,8 @@ together and the language patch is rewritten rather than repaired.
 | A2 | translation key | `LocalizedStringAsset.Key : string` (public field) | every translation | `i18n/Patches.cs`, `i18n/Dump.cs` |
 | A3 | asset-name fallback | `Entities.Data._BaseData.Name : string` (getter) | pieces with no `LocalizedString` show English file names | `i18n/Patches.cs` |
 | A4 | string dump | `Resources.LoadAll<LocalizedStringAsset>("")` — i.e. the assets staying under `Resources` | extraction; translation still works | `i18n/Dump.cs` |
-| A5 | lookup tables | `Interaction.StringLookup` (`ScriptableObjectSingleton`) | categories, rarities, tile types, quest rewards stay English | `i18n/Patches.cs` |
-| A6 | description assembly | `Entities.Data.StringProcessor` — the whitespace split and `[`/`{` handling | token rules in `lint-locale.py` become wrong | `tools/lint-locale.py` |
+| A5 | lookup tables | `Interaction.StringLookup` (`ScriptableObjectSingleton`) — *observed* | categories, rarities, tile types, quest rewards stay English | `i18n/Patches.cs` |
+| A6 | description assembly | `Entities.Data.StringProcessor` — the whitespace split and `[`/`{` handling — *observed* | token rules in `lint-locale.py` become wrong | `tools/lint-locale.py` |
 
 A1 is the one that matters. It is a public no-argument method on a public class and
 everything else in the language patch is cleanup around it.
@@ -99,12 +116,12 @@ leaves those two without Hangul.
 
 | # | Anchor | Signature | Breaks | Fix in |
 |---|---|---|---|---|
-| C1 | built-in cheats | `Interaction.CheatsHandler`, `_cheatsEnabled : bool` (private field), live in `level3` | the shortcut; the widget still works | `cheat/Widget.cs` |
+| C1 | built-in cheats | `Interaction.CheatsHandler`, `_cheatsEnabled : bool` (private field), live in `level3` — *observed* | the shortcut; the widget still works | `cheat/Widget.cs` |
 | C2 | economy | `GameState.ScoreController` — `Score : long`, `Money : int`, `Rerolls`, `Removes`, `Dismisses`, `Rewinds : int`, `Enchant : float` (private setters) | resource cheats | `cheat/Economy.cs` |
 | C3 | economy writes | `ScoreController.ChangeMoney(int, GamePiece, bool)`, `ChangeScore(long)`, `ChangeRerolls(int, GamePiece, bool)`, `ChangeDismisses(int)`, `ChangeRewinds(int)` | resource cheats | `cheat/Economy.cs` |
-| C4 | run control | `GameState.GameController.DebugChangeWeeks(int)`, `DebugSetTarget(int)`, `AddExtraWeek()`, `AddGuildToSelectedGuilds(GamePieceCategory)` | week and target cheats | `cheat/Run.cs` |
+| C4 | run control | `GameState.GameController.DebugChangeWeeks(int)`, `DebugSetTarget(int)`, `AddExtraWeek()` | week and target cheats | `cheat/Run.cs` |
 | C5 | placement bypass | `Entities.BuildingController.CanBuildBuildingAt(Building, int, int, out CantPlaceBuildingReason, bool ignoreAllPlacementRestrictions)` | "build anywhere" | `cheat/Build.cs` |
-| C6 | spawning | `BuildingController.InstantiateAndBuildBuildingAt(GameTag, int, int, bool, bool, GamePiece)` | spawning, and autoplay stage 2 | `cheat/Build.cs`, `autoplay/Exec.cs` |
+| C6 | spawning | `BuildingController.SetCanPlaceNextBuildingAnywhere(bool)` | the free-placement cheat | `cheat/Build.cs` |
 | C7 | unlocks | `Progression.UnlockStateController.DebugUnlockAllGuilds()`, `DebugLevelUpAllGuilds()` | unlock cheats | `cheat/Unlocks.cs` |
 | C8 | milestone | `GameState.MilestoneManager.DebugSetCurrentMilestone(int)`, `EndCurrentMilestoneEarly()` | milestone skip | `cheat/Run.cs` |
 | C9 | shop | `GameState.ShopManager.DebugShowShop()` | forcing the shop | `cheat/Run.cs` |
@@ -136,28 +153,28 @@ bypass has to be rebuilt against the method body.
 
 | # | Anchor | Signature | Breaks | Fix in |
 |---|---|---|---|---|
-| P1 | the board | `Environment.MapController` — `Grid : Grid<Tile>`, `Width`, `Height`, `IsTileInCantBuildArea(int, int)` | **all of autoplay** | `autoplay/Board.cs` |
+| P1 | the board | `Environment.MapController.Grid`, and on whatever type it returns: `Width`, `Height`, `GetTile(int, int)` | **all of autoplay** | `autoplay/Board.cs` |
 | P2 | legality | `BuildingController.CanBuildBuildingAt(…)` (= C5) | all of autoplay | `autoplay/Board.cs` |
-| P3 | adjacency and range | `BuildingController.GetBuildingsWhoseRangesOverlapTile(Tile)`, `IsTileInRangeOfCategory(Tile, GamePieceCategory)`, `IsTileInRangeOfBuilding(Tile, GameTag)` | valuation quality | `autoplay/Value.cs` |
+| P3 | adjacency and range | `BuildingController.GetBuildingsWhoseRangesOverlapTile(Tile)`, `IsTileInRangeOfCategory(…)`, `IsTileInRangeOfBuilding(…)` — *observed*, the road not taken | nothing — see P11 | — |
 | P4 | placed pieces | `BuildingController.Buildings : List<Building>` | valuation quality | `autoplay/Board.cs` |
-| P5 | state gate | `Interaction.InteractionController.CurrentInteractionState`, `ChangeToState(InteractionState, params object[])`, `MouseCoords`, `CurrentlyTargeting` | stages 2–3 | `autoplay/State.cs` |
-| P6 | the 34 states | `Interaction.InteractionStates.*` — `PlacingBuilding`, `Shopping`, `SelectingQuest`, `OpeningPack`, `CompletingMilestone`, … | stage 3 | `autoplay/State.cs` |
+| P5 | state gate | `Interaction.InteractionController.CurrentInteractionState`, `PlacingBuilding`, `Shopping` | all of autoplay | `autoplay/State.cs`, `autoplay/Shop.cs` |
+| P6 | the 34 states | `Interaction.InteractionStates.*` — `PlacingBuilding.OnEnter`, `_BuildingUtilityTargetingState.ExitEffectTargetingState()` | autoplay cannot tell what the game is doing | `autoplay/State.cs`, `autoplay/Items.cs` |
 | P7 | scoring speed | `CheatsHandler.SpeedUpScoring : bool` (public field) | unattended runs take real time | `cheat/Run.cs` |
 | P8 | the held piece | `Interaction.InteractionStates.PlacingBuilding._currentlyPlacing` (private field) | **the helper never has anything to suggest** | `autoplay/State.cs` |
-| P9 | tiles | `Environment.Tile` — `IsEmpty`, `CantBuildOn` | the helper suggests occupied tiles | `autoplay/Board.cs` |
+| P9 | tiles | `Environment.Tile` — `X`, `Y`, `Type`, `IsEmpty`, `CantBuildOn` | the helper suggests occupied tiles | `autoplay/Board.cs` |
 | P10 | piece shape | `Entities.Building` — `X`, `Y`, `Range`, `Tag`, `Categories` | valuation quality | `autoplay/Board.cs` |
 | P15 | board changed | `Entities.BuildingExtensions.ResetCaches()` | suggestions go stale until the held building changes | `autoplay/Overlay.cs` |
 | P16 | what is on offer | `UI.BuildingChoiceBar.Choices` · `UI.BuildingChoiceButton.GameTag` | **scouting stops entirely** | `autoplay/Offers.cs` |
-| P17 | base stats, no instance | `_BuildingBehaviour._range` · `_majorCategory` · `_minorCategories` · `BuildingBehaviours.Instance.BuildingBehaviourDict` | scouting stops | `autoplay/Offers.cs` |
+| P17 | base stats, no instance | `_BuildingBehaviour._range` · `_majorCategory` · `_minorCategories` · `GetBehaviourTargetTags()` · `GetBehaviourTargetCategories()` · `GetScoreForTag(…)` · `BuildingBehaviours.BuildingBehaviourDict` | scouting stops | `autoplay/Offers.cs` |
 | P18 | terrain by tag | `_BuildingBehaviour.GetTileTypesCanBePlacedOn(GameTag)` · `Environment.Tile.Type` | scouting points at ocean | `autoplay/Offers.cs`, `autoplay/Rules.cs` |
 | P20 | placing, for real | `PlacingBuilding.OnUpdate(Vector3, Vector2Int, Tile, bool)` · `PlaceCurrentBuilding(Vector2Int)` · `_canPlaceCurrentBuilding` | **autoplay cannot place anything** | `autoplay/Exec.cs` |
 | P21 | choosing, for real | `UI.BuildingChoiceButton.OnPointerClick(PointerEventData)` | autoplay places but never picks | `autoplay/Exec.cs` |
 | P22 | is it on the board | `Entities.Building.Tile` | autoplay throws whenever the cursor leaves the window | `autoplay/Exec.cs` |
 | P19 | piece name | `Entities.GamePieceDataHolder.GetDataFor(GameTag)` → `_BaseData.Name` | the panel lists tags instead of names | `autoplay/Offers.cs` |
-| P11 | range shape | ``Library.Grid.GridDrawingAlgorithms.GetFilledCircle`` — `dx*dx + dy*dy < r*r + r` | every highlight is subtly wrong | `autoplay/Snapshot.cs` |
+| P11 | range shape | ``Library.Grid.GridDrawingAlgorithms.GetFilledCircle`` — `dx*dx + dy*dy < r*r + r` — *observed*, copied not called | every highlight is subtly wrong | `autoplay/Snapshot.cs` |
 | P12 | declared targets | `GamePiece.TargetTags` · `_GamePieceBehaviour.GetScoreForTag` · `GamePieceLocalValues.TargetCategories` · `GetScoreForTargetCategory` | **the helper stops knowing what a building wants** and falls back to bare adjacency | `autoplay/Board.cs` |
 | P13 | same-type rule | `_BuildingBehaviour.HasRangePlacementRestriction(GamePiece)` | the helper suggests tiles the game refuses | `autoplay/Board.cs`, `autoplay/Rules.cs` |
-| P14 | rule escape hatch | `CanBuildBuildingAt(..., bool ignoreAllPlacementRestrictions)` gating **only** the same-type check | the helper has to trust a stale cache | `autoplay/Board.cs` |
+| P14 | rule escape hatch | `CanBuildBuildingAt(..., bool ignoreAllPlacementRestrictions)` gating **only** the same-type check — *observed* | the helper has to trust a stale cache | `autoplay/Board.cs` |
 
 P12 is what makes a suggestion worth following. Everything else in the valuation is
 a proxy; these four are the game telling us, in its own numbers, what a building is
@@ -186,9 +203,11 @@ tests. That makes it the one place where the game can change without anything
 failing — the helper would simply start drawing confidently wrong highlights. Re-read
 `GetFilledCircle` after a game update; nothing else will tell you.
 
-P1 and P4 are read-only and public. P5 and P6 are where stage 3's difficulty lives —
-not because the members are fragile, but because *when* it is safe to call
-`ChangeToState` is not expressible as a signature.
+P1 and P4 are read-only and public. P5 and P6 are read-only too, and deliberately:
+`ChangeToState` is right there, and autoplay never calls it. Driving the state
+machine would mean knowing *when* a transition is safe, which is not expressible as
+a signature and not discoverable from outside. So the loop waits for a state instead
+of causing one, and every action it takes is a method that state already exposes.
 
 P20 is the one anchor whose failure is **destructive rather than merely wrong**, and
 that is why it is used at all. The obvious alternative,
@@ -205,8 +224,8 @@ autoplay dead, which is the failure worth having.
 | S3 | start-of-milestone pack | `UI.StartOfMilestonePack` (click handler) | autoplay stops after every milestone | `autoplay/Screens.cs` |
 | S4 | choosing a council request | `UI.Quests.CouncilQuestOptionButton.Quest` · `QuestSelectionPanel.SelectQuest()` · `_selected` · `Confirm()` · `PressRerollButton()` | same | `autoplay/Quests.cs` |
 | S7 | claiming a council reward | `UI.Quests.CouncilQuestTextArea._currentQuests` · `_textBlock` · `PressHeaderButton()` · `PressClaimRewardButton()` · `PressSkipRewardButton()` · `QuestCompletedAnim` (active) | **the run ends at the next milestone** | `autoplay/Quests.cs` |
-| S5 | pack contents | `UI.PackSelectionPanel._options` · `UI.Shop.ShopItem` (click) | autoplay stops on an open pack | `autoplay/Screens.cs` |
-| S6 | leaving the shop | `UI.ShopPanel.Exterior` (a FIELD) · `ShopExterior.IsShown` · `_currentSkipReward` · `SkipShop()` | autoplay stops at the shop | `autoplay/Screens.cs` |
+| S5 | pack contents | `UI.PackSelectionPanel._options` · `SkipSelection()` · `UI.Shop.ShopItem.OnPointerClick(…)` | autoplay stops on an open pack | `autoplay/Screens.cs` |
+| S6 | leaving the shop | `UI.ShopPanel.Exterior` (a FIELD) · `FinishShopping()` · `ShopExterior.IsShown` · `_currentSkipReward` · `SkipShop()` · `EnterShop()` | autoplay stops at the shop | `autoplay/Shop.cs` |
 
 S6 carries a precondition the game does not check for itself. `SkipShop` dereferences
 `_currentSkipReward` on its first line and nulls it on its last, while `IsShown` is
@@ -272,14 +291,33 @@ check which *kind* it is before assuming the name moved.
 
 Two things, at different costs.
 
-`tests/Anchors` reflects over an installed `Assembly-CSharp.dll` without launching
-anything. It skips when no install is pointed at, so CI cannot run it — the same gap
-the reference repo's bundle test has, for the same reason: the game's own code cannot
-be committed.
+`tests/Combolands.Anchors` reads an installed `Assembly-CSharp.dll` as **metadata**
+and checks every bound row in one pass. It launches nothing, constructs no game type
+and runs no static initialiser — `MetadataLoadContext` reads the tables and stops
+there. Forty anchors in about fifty milliseconds, and the failure names the row:
+
+```
+P17 base stats, no instance no longer resolves:
+  Entities.BuildingBehaviours._BuildingBehaviour._minorCategories - is a PROPERTY now, not a field
+See docs/ANCHORS.md row P17 for what this breaks and where to fix it.
+```
+
+It binds through the same `Reflect.cs` the mod uses, which matters: a check written
+with `GetProperty` would miss the shadowing trap that `Reflect` exists for, and would
+also *pass* on overloads the mod cannot actually bind. Two rows were found that way —
+`GetTile` and `IsTileInRangeOfBuilding` both have several candidates of the same
+arity, and only the first is disambiguated by parameter type at runtime.
+
+The game is found in the usual Steam locations, or wherever `COMBOLANDS_DIR` points:
 
 ```
 COMBOLANDS_DIR="C:/Program Files (x86)/Steam/steamapps/common/Combolands" dotnet test
 ```
+
+With no game it **skips rather than passes**, because a green run that checked
+nothing is worse than no test. The checks that hold this file and the catalogue to
+each other still run — a row with no catalogue entry is an anchor nobody verifies,
+and an entry with no row is a failure nobody can look up.
 
 The **M0 probe** is the stronger check and the more expensive one. It runs as a
 MelonMod inside the live game, so it also proves the loader still boots and the
@@ -287,5 +325,6 @@ assemblies are reachable from a mod's perspective — things a static reflection
 cannot tell you. It writes the table above with the resolved signature beside each
 row, which is how you see that a method survived but *changed shape*.
 
-Run the static test after every game update. Run the probe when it disagrees with
-you, or when the loader is what you suspect.
+Run the static test after every game update, and re-read the **observed** rows by
+hand — nothing else will. Run the probe when the static test disagrees with you, or
+when the loader is what you suspect.
