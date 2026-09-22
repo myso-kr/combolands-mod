@@ -83,7 +83,7 @@ namespace Combolands.Mod.Autoplay
 
         // Base stats and declared targets are fixed per building type, so they are
         // worked out once. Nothing here depends on the board.
-        private static bool Describe(int tag, out Offer offer)
+        internal static bool Describe(int tag, out Offer offer)
         {
             offer = default(Offer);
 

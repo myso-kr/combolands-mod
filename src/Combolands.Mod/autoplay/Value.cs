@@ -18,10 +18,20 @@ namespace Combolands.Mod.Autoplay
     // they are tiebreakers rather than the main signal.
     internal static class Value
     {
-        // A matched declared target, normalised so buildings that pay 10 and buildings
-        // that pay 30 are on the same scale. This is the term that should decide the
-        // ranking; everything else separates ties.
-        internal const float WeightTarget = 2.5f;
+        // Declared points, RAW. This is the term that decides the ranking.
+        //
+        // It used to be normalised by the largest score the candidate declares, on the
+        // reasoning that a building paying 6 a target and one paying 30 are both doing
+        // their best. That is a fairness argument, and fairness is not what "which of
+        // these three cards" is asking. Normalised, 30x3 = 90 points and 6x3 = 18
+        // points both read as "x3" and rank equal - which is simply wrong.
+        //
+        // The board is not random. What is on it, what each piece targets and what
+        // each target pays are all decided, so the points a placement would earn right
+        // now are computable, and computing them beats approximating them. The scale
+        // is small because raw scores run to the tens and hundreds while every other
+        // term here counts pieces.
+        internal const float WeightTargetPoints = 0.05f;
 
         internal const float WeightCovers = 0.35f;     // pieces this one reaches
         internal const float WeightCoveredBy = 0.45f;  // pieces that reach this one
@@ -91,12 +101,14 @@ namespace Combolands.Mod.Autoplay
                 }
             }
 
+            // Kept for the label and the panel: "x3 targets" reads better on a tile
+            // than "90 points". It no longer feeds the ranking.
             if (board.MaxTargetScore > 0)
                 result.TargetHits = (float)result.TargetScore / board.MaxTargetScore;
 
             result.Room = BuildableWithin(board, x, y, RoomRadius(candidate));
 
-            result.Total = WeightTarget * result.TargetHits
+            result.Total = WeightTargetPoints * result.TargetScore
                          + WeightCovers * result.Covers
                          + WeightCoveredBy * result.CoveredBy
                          + WeightAdjacent * result.Adjacent

@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using UnityEngine;
 
 namespace Combolands.Mod.Autoplay
@@ -59,6 +60,13 @@ namespace Combolands.Mod.Autoplay
             Log.Info("autoplay", "running");
         }
 
+        internal static void Forget()
+        {
+            Refused.Clear();
+            Hopeless.Clear();
+            _refusedFor = null;
+        }
+
         internal static void Stop()
         {
             if (!Running) return;
@@ -87,14 +95,21 @@ namespace Combolands.Mod.Autoplay
         }
 
         // One action, now. This is what the step key does, and what Run calls.
+        //
+        // Screens come first because they BLOCK: a milestone summary waiting for a
+        // click, a pack to pick from, a shop standing open. There is no point ranking
+        // tiles while a modal is up, and a loop that only knew how to place buildings
+        // sat in front of each of those forever.
         internal static bool Step()
         {
+            if (Screens.Handle()) { _last = Screens.Last; return true; }
+
             var piece = State.PieceBeingPlaced();
 
             if (piece != null) return PlaceHeld(piece);
             if (Config.AutoplayPicks) return PickAnOffer();
 
-            _last = "nothing in hand, and picking is off";
+            _last = "nothing to do here";
             return false;
         }
 
@@ -113,6 +128,15 @@ namespace Combolands.Mod.Autoplay
 
         // --- the two actions ------------------------------------------------------
 
+        // Tiles this exact piece has been refused, and building types that turned out
+        // to have nowhere to go. Both exist because a refusal used to produce nothing
+        // but another identical attempt next tick.
+        private static readonly HashSet<long> Refused = new HashSet<long>();
+        private static readonly HashSet<int> Hopeless = new HashSet<int>();
+        private static object _refusedFor;
+
+        private static long Key(int x, int y) { return ((long)x << 32) ^ (uint)y; }
+
         private static bool PlaceHeld(object piece)
         {
             // Before anything is read: the ghost follows the cursor, and the cursor
@@ -123,28 +147,79 @@ namespace Combolands.Mod.Autoplay
                 return false;
             }
 
-            // The whole board, never the viewport. That limit exists so a HUMAN can
-            // see the highlight being offered; a loop does not need to look at a tile
-            // to put a building on it, and clamping it to the camera would make the
-            // best move depend on where the view happened to be scrolled.
+            if (!ReferenceEquals(piece, _refusedFor))
+            {
+                Refused.Clear();
+                _refusedFor = piece;
+            }
+
             var board = Board.Read(piece, null);
             if (board == null) { _last = "cannot read the board"; return false; }
 
             // Separation is for a human choosing between options. A machine wants the
             // single best tile, so it is asked for one with none.
-            var best = Plan.Best(board, 12, 0);
-            for (int i = 0; i < best.Count; i++)
+            foreach (var candidate in Plan.Best(board, 40, 0))
             {
-                if (!Board.CanBuildAt(piece, best[i].X, best[i].Y)) continue;
-                if (Exec.PlaceAt(best[i].X, best[i].Y))
+                if (Refused.Contains(Key(candidate.X, candidate.Y))) continue;
+                if (!Board.CanBuildAt(piece, candidate.X, candidate.Y)) continue;
+
+                switch (Exec.PlaceAt(candidate.X, candidate.Y))
                 {
-                    _last = string.Format("placed at ({0},{1})  x{2:0.#} targets",
-                        best[i].X, best[i].Y, best[i].Score.TargetHits);
-                    return true;
+                    case Exec.Result.Placed:
+                        Hopeless.Clear();
+                        _last = string.Format("placed at ({0},{1})  {2} pts of targets",
+                            candidate.X, candidate.Y, candidate.Score.TargetScore);
+                        return true;
+
+                    case Exec.Result.Refused:
+                        // Our range shape does not know about Crane or Stable, so the
+                        // game can legitimately refuse a tile we ranked. Remember it
+                        // rather than offering it again next tick, forever.
+                        Refused.Add(Key(candidate.X, candidate.Y));
+                        continue;
+
+                    default:
+                        _last = "could not reach the placement path";
+                        return false;
                 }
             }
 
-            _last = "nowhere legal to place";
+            // The ranked list is exhausted. Ask the game about the rest of the board,
+            // properly - full rule, caches fresh - and take the first tile it accepts.
+            if (Fallback(piece, board)) return true;
+
+            // Genuinely nowhere. Put the card back, the way a right click would, and
+            // remember not to pick this building again until something has changed.
+            Hopeless.Add(board.Candidate.Tag);
+            if (Exec.CancelPlacing())
+            {
+                _last = "nowhere legal for it - put it back";
+                return true;
+            }
+
+            _last = "nowhere legal to place, and it will not go back";
+            return false;
+        }
+
+        private static bool Fallback(object piece, Snapshot board)
+        {
+            for (int y = 0; y < board.Height; y++)
+                for (int x = 0; x < board.Width; x++)
+                {
+                    if (!board.IsBuildable(x, y)) continue;
+                    if (Refused.Contains(Key(x, y))) continue;
+                    if (!Board.CanBuildAtStrict(piece, x, y)) continue;
+
+                    if (Exec.PlaceAt(x, y) != Exec.Result.Placed)
+                    {
+                        Refused.Add(Key(x, y));
+                        continue;
+                    }
+
+                    Hopeless.Clear();
+                    _last = string.Format("placed at ({0},{1}) - the ranked tiles were all refused", x, y);
+                    return true;
+                }
             return false;
         }
 
@@ -160,6 +235,8 @@ namespace Combolands.Mod.Autoplay
 
             for (int i = 0; i < offers.Count; i++)
             {
+                if (Hopeless.Contains(offers[i].Tag)) continue;
+
                 var board = Board.ReadFor(offers[i], null);
                 if (board == null) continue;
 
@@ -171,7 +248,15 @@ namespace Combolands.Mod.Autoplay
                 bestOffer = i;
             }
 
-            if (bestOffer < 0) { _last = "no offer has anywhere to go"; return false; }
+            if (bestOffer < 0)
+            {
+                // Every offer is either unplaceable or already known hopeless. Let
+                // them back in: the board changes under us, and a building that had
+                // nowhere to go a moment ago may have somewhere now.
+                if (Hopeless.Count > 0) { Hopeless.Clear(); _last = "retrying the offers"; return false; }
+                _last = "no offer has anywhere to go";
+                return false;
+            }
 
             var button = Offers.ButtonAt(bestOffer);
             if (button == null) { _last = "could not reach the choice button"; return false; }

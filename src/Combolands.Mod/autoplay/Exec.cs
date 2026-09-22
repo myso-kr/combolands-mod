@@ -126,20 +126,24 @@ namespace Combolands.Mod.Autoplay
             return OnMap(piece);
         }
 
-        // Returns true when a building was actually placed.
-        internal static bool PlaceAt(int x, int y)
+        // Why a placement did not happen, which the caller needs in order to make
+        // progress. "The game said no" is a fact about this tile and worth
+        // remembering; "we could not ask" is a fact about right now and is not.
+        internal enum Result { Placed, Refused, Unavailable }
+
+        internal static Result PlaceAt(int x, int y)
         {
-            if (!Resolve()) return false;
+            if (!Resolve()) return Result.Unavailable;
 
             var controller = Singletons.Get(Interaction);
-            if (controller == null) return false;
+            if (controller == null) return Result.Unavailable;
 
             var state = _currentState.GetValue(controller, null);
             var placing = _placingState.GetValue(controller, null);
-            if (state == null || !ReferenceEquals(state, placing)) return false;
+            if (state == null || !ReferenceEquals(state, placing)) return Result.Unavailable;
 
             var tile = TileAt(x, y);
-            if (!Alive.Is(tile)) return false;
+            if (!Alive.Is(tile)) return Result.Unavailable;
 
             // Step one: the game's own per-frame update, told the cursor is over this
             // tile. Moves the ghost, revalidates, rebuilds the highlight caches that
@@ -156,13 +160,43 @@ namespace Combolands.Mod.Autoplay
             // call above. If it says no, nothing happens - the helper does not get to
             // overrule the rules.
             var allowed = _canPlace.GetValue(state);
-            if (!(allowed is bool) || !(bool)allowed) return false;
+            if (!(allowed is bool) || !(bool)allowed) return Result.Refused;
 
             _placeCurrent.Invoke(state, new object[] { new Vector2Int(x, y) });
             Acted();
             Log.Info("autoplay", "placed at (" + x + "," + y + ")");
+            return Result.Placed;
+        }
+
+        // Put the card back. This is what a right click does when nothing has been
+        // placed yet: the ghost is destroyed and the state reverts, leaving the choice
+        // bar as it was. It is the way out when a building genuinely has nowhere to
+        // go - which happens, and used to mean the loop sat there forever.
+        internal static bool CancelPlacing()
+        {
+            if (!Resolve()) return false;
+
+            var controller = Singletons.Get(Interaction);
+            if (controller == null) return false;
+
+            var state = _currentState.GetValue(controller, null);
+            if (state == null || !ReferenceEquals(state, _placingState.GetValue(controller, null)))
+                return false;
+
+            if (_cancel == null)
+            {
+                _cancel = Anchors.MethodByName(
+                    Anchors.Type("Interaction.InteractionStates.PlacingBuilding"),
+                    "CancelPlacingBuilding", 0);
+                if (_cancel == null) return false;
+            }
+
+            _cancel.Invoke(state, null);
+            Log.Info("autoplay", "put the building back - nowhere legal for it");
             return true;
         }
+
+        private static MethodInfo _cancel;
 
         // Autoplay makes only legal moves, so by the mod's own definition it is not a
         // cheat and does not close the achievement gate. Whether an achievement a bot

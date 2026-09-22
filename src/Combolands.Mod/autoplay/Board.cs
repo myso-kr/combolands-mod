@@ -350,6 +350,32 @@ namespace Combolands.Mod.Autoplay
             return ok;
         }
 
+        private static MethodInfo _resetCaches;
+
+        // BuildingExtensions._rangeCache is keyed by Building and ignores the override
+        // tile, so a batch of probes shares one answer. The game resets it before
+        // every one of its own checks; so does this, for the strict path that has to
+        // be believed.
+        internal static void ResetGameCaches()
+        {
+            if (_resetCaches == null)
+            {
+                _resetCaches = Anchors.Method(Anchors.Type("Entities.BuildingExtensions"), "ResetCaches");
+                if (_resetCaches == null) return;
+            }
+            try { _resetCaches.Invoke(null, null); }
+            catch { }
+        }
+
+        // The game's whole answer, same-type rule included, with the cache made fresh
+        // first. Slower than CanBuildAt and correct where it matters - the fallback
+        // that runs when every ranked tile has been refused.
+        internal static bool CanBuildAtStrict(object candidatePiece, int x, int y)
+        {
+            ResetGameCaches();
+            return Ask(candidatePiece, x, y, false);
+        }
+
         // The game's own placement rule, for one tile. Reflection per call, so this is
         // asked only about shortlisted tiles - never about all 1,188.
         private static MethodInfo _canBuild;
@@ -362,18 +388,31 @@ namespace Combolands.Mod.Autoplay
                 if (_canBuild == null) return true;   // unknown, so do not hide the tile
             }
 
+            return Ask(candidatePiece, x, y, true);
+        }
+
+        // ignoreSameType disables EXACTLY one check inside CanBuildBuildingAt and
+        // nothing else. That check is unreliable under batch probing because
+        // BuildingExtensions._rangeCache is keyed by Building and ignores the override
+        // tile, so thirty probes in a frame get one answer thirty times.
+        // Rules.SameTypeInRange evaluates it properly, per tile - but our range shape
+        // does not know about Crane or Stable, so the game can still refuse a tile we
+        // offered. That is what CanBuildAtStrict is for.
+        private static bool Ask(object candidatePiece, int x, int y, bool ignoreSameType)
+        {
             var controller = Singletons.Get(Buildings);
             if (controller == null) return false;
 
-            // true here disables EXACTLY one check inside CanBuildBuildingAt - the
-            // same-type-in-range one - and nothing else. That check is unreliable
-            // under batch probing because BuildingExtensions._rangeCache is keyed by
-            // Building and ignores the override tile, so thirty probes in a frame get
-            // one answer thirty times. Rules.SameTypeInRange evaluates it properly,
-            // per tile. Everything else the game checks stays authoritative.
-            var args = new[] { candidatePiece, x, y, null, (object)true };
-            var allowed = _canBuild.Invoke(controller, args);
-            return allowed is bool && (bool)allowed;
+            var args = new[] { candidatePiece, x, y, null, (object)ignoreSameType };
+            try
+            {
+                var allowed = _canBuild.Invoke(controller, args);
+                return allowed is bool && (bool)allowed;
+            }
+            catch
+            {
+                return false;
+            }
         }
     }
 }

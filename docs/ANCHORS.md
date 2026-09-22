@@ -196,6 +196,23 @@ that is why it is used at all. The obvious alternative,
 refactor and quietly stop doing half the job. A missing `PlaceCurrentBuilding` stops
 autoplay dead, which is the failure worth having.
 
+## Autoplay's screens
+
+| # | Anchor | Signature | Breaks | Fix in |
+|---|---|---|---|---|
+| S1 | milestone summary | `UI.MilestoneScreen.MilestoneScreen.WaitingForClick` · `ProcessClick()` | **autoplay stops at every milestone** | `autoplay/Screens.cs` |
+| S2 | modal dialogs | `Shared.UI.MessageDialog.IsShown` · `Close()` | autoplay stops at the first dialog | `autoplay/Screens.cs` |
+| S3 | start-of-milestone pack | `UI.StartOfMilestonePack` (click handler) | autoplay stops after every milestone | `autoplay/Screens.cs` |
+| S4 | council request | `UI.Quests.CouncilQuestOptionButton` (click) · `QuestSelectionPanel.Confirm()` | same | `autoplay/Screens.cs` |
+| S5 | pack contents | `UI.PackSelectionPanel._options` · `UI.Shop.ShopItem` (click) | autoplay stops on an open pack | `autoplay/Screens.cs` |
+| S6 | leaving the shop | `UI.ShopPanel.Exterior` (a FIELD) · `ShopExterior.IsShown` · `_currentSkipReward` · `SkipShop()` | autoplay stops at the shop | `autoplay/Screens.cs` |
+
+S6 carries a precondition the game does not check for itself. `SkipShop` dereferences
+`_currentSkipReward` on its first line and nulls it on its last, while `IsShown` is
+cleared later by a coroutine — so calling it twice throws, and once it has thrown the
+loop never gets past `Screens.Handle` again. That is why the mod reads the private
+field before calling, and why any successful screen action is followed by a settle.
+
 ## The hazard that is not in the table
 
 `Entities.Building` redeclares `GamePiece.Behaviour` with `new`, and the game does

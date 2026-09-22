@@ -84,6 +84,7 @@ namespace Combolands.Mod
             // A new scene is a new run. A loop left running across one would start
             // placing buildings before the player has looked at the board.
             Supervisor.Stop();
+            Supervisor.Forget();
 
             if (_dumped || !Config.DumpStrings) return;
             _dumped = true;
