@@ -1,0 +1,38 @@
+# ── Extracted from the game ───────────────────────────────────────
+# Not committed. It is the game's own text, or derived from it, and anyone with a
+# copy of the game can make it again with tools/.
+generated/strings.en.json
+generated/strings.ko.seed.json
+generated/decompiled/
+extracted/
+
+# generated/fingerprint.json is deliberately NOT here. It is our own record of which
+# game builds were verified, not anything taken out of the game, and the README and
+# the release notes both read from it.
+
+# ── Runtime output ────────────────────────────────────────────────
+# MelonLoader writes these beside the game, but they land here when the plugin is
+# built straight into a local test install.
+MelonLoader/
+Mods/
+UserData/
+UserLibs/
+*.log
+
+# ── Build ─────────────────────────────────────────────────────────
+bin/
+obj/
+dist/
+*.user
+
+# ── Python ────────────────────────────────────────────────────────
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+
+# ── The site ──────────────────────────────────────────────────────
+# docs/ is the GitHub Pages *source*. What Jekyll makes from it is not.
+docs/_site/
+docs/.jekyll-cache/
+docs/.jekyll-metadata
