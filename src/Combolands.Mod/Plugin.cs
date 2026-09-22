@@ -61,6 +61,10 @@ namespace Combolands.Mod
                 Log.Guard("helper.hook", () => Overlay.Apply(Patcher));
                 Log.Info("helper", "placement overlay ready on " + Config.HelperKey);
             }
+
+            if (Config.Autoplay)
+                Log.Info("autoplay", "ready - " + Config.AutoplayKey + " to run, "
+                                   + Config.AutoplayStepKey + " for one step");
         }
 
         public override void OnSceneWasInitialized(int buildIndex, string sceneName)
@@ -77,6 +81,10 @@ namespace Combolands.Mod
             Overlay.Clear();
             Offers.Forget();
 
+            // A new scene is a new run. A loop left running across one would start
+            // placing buildings before the player has looked at the board.
+            Supervisor.Stop();
+
             if (_dumped || !Config.DumpStrings) return;
             _dumped = true;
             Log.Guard("dump", Dump.Run);
@@ -85,6 +93,15 @@ namespace Combolands.Mod
         public override void OnUpdate()
         {
             if (Config.Cheats) Log.Guard("cheat.input", Widget.Update);
+
+            if (Config.Autoplay)
+            {
+                if (UnityEngine.Input.GetKeyDown(Config.AutoplayKey))
+                    Log.Guard("autoplay.toggle", Supervisor.Toggle);
+                if (UnityEngine.Input.GetKeyDown(Config.AutoplayStepKey))
+                    Log.Guard("autoplay.step", () => Supervisor.Step());
+                Log.Guard("autoplay.tick", Supervisor.Tick);
+            }
 
             if (!Config.PlayHelper) return;
             if (UnityEngine.Input.GetKeyDown(Config.HelperKey)) Log.Guard("helper.toggle", Overlay.Toggle);

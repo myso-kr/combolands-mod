@@ -440,9 +440,9 @@ Stage 1  Play helper — an overlay
          Walk every legal tile for the piece being held, score it, highlight the
          best few. Reads game state, writes nothing. Cannot corrupt anything.
 
-Stage 2  Auto-place — one keypress
-         Call InstantiateAndBuildBuildingAt() on stage 1's top tile. Bypasses the
-         PlacingBuilding state, so UI consistency needs checking.
+Stage 2  Auto-place — DONE 2026-09-23
+         Through the player's own path, NOT InstantiateAndBuildBuildingAt.
+         F10 steps once, F11 runs. Picks the building as well as the tile.
 
 Stage 3  Autoplay — unattended
          A supervisor coroutine over InteractionState: shops, quests, packs,
@@ -498,6 +498,71 @@ type with `DeclaredOnly`, so shadowing resolves the way the game's own code bind
 and cannot be ambiguous between levels; it is pure, and linked into `tests/` with
 the exact shape that broke. And `Log.HasFailed` lets a dead module say so in the
 panel — before, "nothing to suggest" and "this crashed an hour ago" looked identical.
+
+### Stage 2 takes the player's path, not the shortcut
+
+`BuildingController.InstantiateAndBuildBuildingAt` is the obvious way to place a
+building and the wrong one. It builds the building and skips everything around it -
+the placement count, clearing the choice bar, multiple placement, the
+consumable-on-create, the state transition at the end. The state machine would be
+left believing the player is still placing.
+
+So autoplay performs the player's own actions through the player's own methods, with
+coordinates instead of a mouse:
+
+```
+choose  ->  BuildingChoiceButton.OnPointerClick(left)
+place   ->  PlacingBuilding.OnUpdate(...)  then  PlaceCurrentBuilding(coords)
+```
+
+`OnUpdate` is the same method `InteractionController` calls every frame: it moves the
+ghost, revalidates the tile, and refreshes the highlight caches the placement effects
+read. `LMBDown` is false while we call it, so it will not place on its own - and then
+we invoke the method its LMB branch would have.
+
+It cannot break a rule. `PlaceAt` reads the game's own `_canPlaceCurrentBuilding`,
+computed by that call, and gives up when it says no. **Autoplay cannot put a building
+where the player could not.**
+
+`Exec.cs` is the only file in `autoplay/` that writes. That everything else only
+reads is what made stage 1 shippable unfinished.
+
+### Two ways a Unity mod lies to itself
+
+Both of these disabled a feature in silence, and both were found by running it rather
+than by reading it.
+
+**A destroyed object is not null.** Unity overloads `==` on `UnityEngine.Object` so a
+destroyed object compares equal to null - but the overload is picked by the *static*
+type, and everything reflection hands back is typed `object`. `building == null` is
+therefore a plain reference comparison, which a destroyed object passes; the next
+property read throws. The game destroys a placed building's ghost with
+`Object.Destroy(go, 0.01f)`, so for a few frames after every placement
+`BuildingController.Buildings` holds something that is neither null nor there.
+`Alive.cs` exists for exactly this.
+
+**The held ghost follows the cursor, and the cursor leaves the window.** Off the map
+`Building.Tile` is null, and the game's accessors walk from it without checking:
+
+```
+Values.Range                 -> GetBehaviourRange -> GetCountOfBuildingsOfTypeAdjacent
+HasRangePlacementRestriction -> GetAdjacentTiles  -> Get4Neighbours(null)
+```
+
+Simply *reading* the piece throws. That is why autoplay stopped the instant the
+cursor left a windowed game, and why it looked like a click problem. The loop now
+walks the ghost back onto the board - through `OnUpdate`, the same path a mouse move
+takes - before it reads anything.
+
+### Silence was the real bug
+
+Both of those hid for the same reason: `Log.Guard` reported a module's first failure
+and then never spoke again. The helper had been throwing every frame for an hour and
+the only evidence was one line near the top of the log.
+
+It now re-reports every thirty seconds **with a running count**, so "it happened
+once" and "it is happening every frame" look different. That change produced the
+stack trace for the off-map ghost within a minute of asking for it.
 
 ### The valuation problem, stated honestly
 
@@ -620,7 +685,7 @@ M3  Cheat widget                                      DONE 2026-09-23
     [x] panel clicks no longer fall through to the map
     [x] DPI scaling - IMGUI is unreadable above 1080p untouched
 
-M4  Play helper (stage 1)                             DONE 2026-09-23
+M4  Play helper (stages 1-2)                          DONE 2026-09-23
     [x] Snapshot / Board / Value / Plan / State / Overlay
     [x] the game's own range shape reproduced exactly
     [x] 14 unit tests over hand-written boards, no game, no Unity

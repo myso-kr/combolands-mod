@@ -127,6 +127,12 @@ namespace Combolands.Mod.Autoplay
                 return;
             }
 
+            // Same trap the autoplay loop fell into: the ghost follows the cursor,
+            // and off the map the game's own accessors throw rather than return
+            // nothing. The helper does not move it back - the player is plainly not
+            // placing right now - it just says nothing until they are.
+            if (!Exec.OnMap(piece)) { _shown.Clear(); _marks.Clear(); return; }
+
             // Still rate-limited. ResetCaches can fire several times in one frame
             // during a trigger chain, and recomputing per call would be a stutter for
             // no gain.
@@ -375,7 +381,8 @@ namespace Combolands.Mod.Autoplay
         {
             if (!Enabled) return "off";
             if (Log.HasFailed("helper.refresh"))
-                return "STOPPED after an error - see MelonLoader/Latest.log";
+                return string.Format("{0} error(s) so far - see MelonLoader/Latest.log",
+                    Log.FailureCount("helper.refresh"));
             if (_scoutLine.Length > 0) return "scouting:  " + _scoutLine;
             if (_shown.Count == 0) return "on - nothing to suggest (hold a building)";
 

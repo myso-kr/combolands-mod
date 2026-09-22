@@ -41,7 +41,7 @@ namespace Combolands.Mod.Autoplay
         // screen, and leaving it out would silently change the answer.
         internal static Snapshot Read(object candidatePiece, Rect? window = null)
         {
-            if (candidatePiece == null) return null;
+            if (!Alive.Is(candidatePiece)) return null;
 
             var board = ReadBoard(window, RangeOf(candidatePiece));
             if (board == null) return null;
@@ -147,7 +147,9 @@ namespace Combolands.Mod.Autoplay
             {
                 foreach (var building in live)
                 {
-                    if (building == null) continue;
+                    // Not `building == null`: that is a reference comparison on an
+                    // `object`, and a destroyed Unity object passes it. See Alive.cs.
+                    if (!Alive.Is(building)) continue;
                     board.Buildings.Add(ToPiece(building));
                 }
             }
@@ -290,8 +292,19 @@ namespace Combolands.Mod.Autoplay
                 if (_hasRangeRestriction == null) return false;
             }
 
-            var restricted = _hasRangeRestriction.Invoke(behaviour, new[] { piece });
-            return restricted is bool && (bool)restricted;
+            // The game's implementation counts Plazas adjacent to the piece, which
+            // means walking from its tile - and a ghost that is off the map has none.
+            // Exec.BringOnMap normally prevents that; this is the seatbelt, and true
+            // is the conservative answer.
+            try
+            {
+                var restricted = _hasRangeRestriction.Invoke(behaviour, new[] { piece });
+                return restricted is bool && (bool)restricted;
+            }
+            catch
+            {
+                return true;
+            }
         }
 
         private static bool Resolve()

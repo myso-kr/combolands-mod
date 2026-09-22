@@ -44,7 +44,7 @@ namespace Combolands.Mod.Autoplay
         private static PropertyInfo _behaviourDict;
         private static FieldInfo _range, _major, _minor;
         private static MethodInfo _targetTags, _targetCategories, _scoreForTag, _tileTypes;
-        private static PropertyInfo _categoryValue, _categoryScore;
+        private static FieldInfo _categoryValue, _categoryScore;
         private static MethodInfo _dataFor;
         private static PropertyInfo _dataName;
 
@@ -66,7 +66,7 @@ namespace Combolands.Mod.Autoplay
 
             foreach (var button in buttons)
             {
-                if (button == null) continue;
+                if (!Alive.Is(button)) continue;
                 var tag = Convert.ToInt32(_choiceTag.GetValue(button, null));
                 if (tag == 0) continue;
 
@@ -143,14 +143,17 @@ namespace Combolands.Mod.Autoplay
                 if (entry == null) continue;
                 if (_categoryValue == null)
                 {
-                    _categoryValue = Anchors.Property(entry.GetType(), "GamePieceCategory");
-                    _categoryScore = Anchors.Property(entry.GetType(), "Score");
+                    // TargetCategory is a struct of public FIELDS. Asking for them as
+                    // properties quietly found nothing, so every building that targets
+                    // a category scouted as though it wanted nothing.
+                    _categoryValue = Anchors.Field(entry.GetType(), "GamePieceCategory");
+                    _categoryScore = Anchors.Field(entry.GetType(), "Score");
                 }
                 if (_categoryValue == null || _categoryScore == null) return;
 
-                var score = Convert.ToInt32(_categoryScore.GetValue(entry, null));
+                var score = Convert.ToInt32(_categoryScore.GetValue(entry));
                 if (score <= 0) continue;
-                offer.CategoryScores[Convert.ToInt32(_categoryValue.GetValue(entry, null))] = score;
+                offer.CategoryScores[Convert.ToInt32(_categoryValue.GetValue(entry))] = score;
                 if (score > offer.MaxScore) offer.MaxScore = score;
             }
         }
@@ -265,6 +268,30 @@ namespace Combolands.Mod.Autoplay
                 return false;
             }
             return true;
+        }
+
+        // The live button behind offer `index`, for Exec to click. Read fresh rather
+        // than cached: the bar is rebuilt every week and a stale reference would be a
+        // click on a destroyed object.
+        internal static object ButtonAt(int index)
+        {
+            if (!Resolve()) return null;
+
+            var bar = Singletons.Get(ChoiceBar);
+            if (bar == null) return null;
+
+            var buttons = _choices.GetValue(bar, null) as IEnumerable;
+            if (buttons == null) return null;
+
+            int i = 0;
+            foreach (var button in buttons)
+            {
+                if (!Alive.Is(button)) continue;
+                if (Convert.ToInt32(_choiceTag.GetValue(button, null)) == 0) continue;
+                if (i == index) return button;
+                i++;
+            }
+            return null;
         }
 
         internal static void Forget()

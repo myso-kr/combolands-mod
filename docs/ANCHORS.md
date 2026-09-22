@@ -150,6 +150,9 @@ bypass has to be rebuilt against the method body.
 | P16 | what is on offer | `UI.BuildingChoiceBar.Choices` · `UI.BuildingChoiceButton.GameTag` | **scouting stops entirely** | `autoplay/Offers.cs` |
 | P17 | base stats, no instance | `_BuildingBehaviour._range` · `_majorCategory` · `_minorCategories` · `BuildingBehaviours.Instance.BuildingBehaviourDict` | scouting stops | `autoplay/Offers.cs` |
 | P18 | terrain by tag | `_BuildingBehaviour.GetTileTypesCanBePlacedOn(GameTag)` · `Environment.Tile.Type` | scouting points at ocean | `autoplay/Offers.cs`, `autoplay/Rules.cs` |
+| P20 | placing, for real | `PlacingBuilding.OnUpdate(Vector3, Vector2Int, Tile, bool)` · `PlaceCurrentBuilding(Vector2Int)` · `_canPlaceCurrentBuilding` | **autoplay cannot place anything** | `autoplay/Exec.cs` |
+| P21 | choosing, for real | `UI.BuildingChoiceButton.OnPointerClick(PointerEventData)` | autoplay places but never picks | `autoplay/Exec.cs` |
+| P22 | is it on the board | `Entities.Building.Tile` | autoplay throws whenever the cursor leaves the window | `autoplay/Exec.cs` |
 | P19 | piece name | `Entities.GamePieceDataHolder.GetDataFor(GameTag)` → `_BaseData.Name` | the panel lists tags instead of names | `autoplay/Offers.cs` |
 | P11 | range shape | ``Library.Grid.GridDrawingAlgorithms.GetFilledCircle`` — `dx*dx + dy*dy < r*r + r` | every highlight is subtly wrong | `autoplay/Snapshot.cs` |
 | P12 | declared targets | `GamePiece.TargetTags` · `_GamePieceBehaviour.GetScoreForTag` · `GamePieceLocalValues.TargetCategories` · `GetScoreForTargetCategory` | **the helper stops knowing what a building wants** and falls back to bare adjacency | `autoplay/Board.cs` |
@@ -187,6 +190,12 @@ P1 and P4 are read-only and public. P5 and P6 are where stage 3's difficulty liv
 not because the members are fragile, but because *when* it is safe to call
 `ChangeToState` is not expressible as a signature.
 
+P20 is the one anchor whose failure is **destructive rather than merely wrong**, and
+that is why it is used at all. The obvious alternative,
+`BuildingController.InstantiateAndBuildBuildingAt`, would keep working after a
+refactor and quietly stop doing half the job. A missing `PlaceCurrentBuilding` stops
+autoplay dead, which is the failure worth having.
+
 ## The hazard that is not in the table
 
 `Entities.Building` redeclares `GamePiece.Behaviour` with `new`, and the game does
@@ -199,6 +208,18 @@ Every lookup in this mod therefore goes through `Reflect.cs`, which walks the
 hierarchy from the most derived type with `DeclaredOnly`. **Do not reach for
 `GetProperty`, `GetField` or `GetMethod` directly.** The shapes that broke it are
 pinned in `tests/ReflectTests.cs`.
+
+Two more traps of the same kind, both of which disabled a feature in silence:
+
+**A destroyed Unity object is not `null`.** The `==` overload that makes it look null
+is chosen by the static type, and reflection returns `object`. Use `Alive.Is(...)`,
+never `x == null`, on anything that came out of the game.
+
+**`TargetCategory` is a struct of public FIELDS**, not properties. Asking
+`Anchors.Property` for `GamePieceCategory` found nothing, and every
+category-targeting building scouted as though it wanted nothing - a warning in the
+log and a silently worse answer on screen. When a member is not where you expect,
+check which *kind* it is before assuming the name moved.
 
 ## What watches this file
 

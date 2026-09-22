@@ -38,7 +38,10 @@ namespace Combolands.Mod.Autoplay
             var placingState = _placing.GetValue(controller, null);
             if (!ReferenceEquals(state, placingState)) return null;
 
-            return _currentlyPlacing.GetValue(state);
+            // The ghost is destroyed with a delay when a building is placed, so for
+            // a few frames this field holds something that is neither null nor there.
+            var piece = _currentlyPlacing.GetValue(state);
+            return Alive.Is(piece) ? piece : null;
         }
 
         private static bool Resolve()

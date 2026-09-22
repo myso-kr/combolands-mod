@@ -92,6 +92,27 @@ Tiles the game would refuse are never highlighted, including the "no other of th
 building in range" rule — which the helper has to evaluate itself, because the
 game's own check reads a cache that cannot answer about thirty tiles in one frame.
 
+## Autoplay
+
+**F11** runs it, **F10** takes one step. It picks which offered building to place and
+where, and plays the **placement phase only** - shops, packs, quests and milestones
+are still yours.
+
+It performs the player's own actions through the player's own methods, with
+coordinates instead of a mouse, so the game's state machine ends up exactly where it
+would have. It also **cannot break a rule**: every placement goes through the game's
+own legality check and is abandoned when the answer is no.
+
+It keeps running when the window loses focus. The keys do not - click the window
+before pressing F11 to stop it.
+
+Autoplay makes only legal moves, so by this mod's definition it is not a cheat and
+does not close the achievement gate. Whether an achievement a bot earned is one you
+earned is a different question, and `AutoplayBlocksAchievements` is there for it.
+
+> Back up your saves before a long unattended run:
+> `%USERPROFILE%\AppData\LocalLow\Crux Games\Combolands\`
+
 ## Configuration
 
 `UserData/MelonPreferences.cfg`, written on first run:
@@ -116,6 +137,12 @@ game's own check reads a cache that cannot answer about thirty tiles in one fram
 | `PlayHelperVisibleOnly` | `true` | only suggest tiles the camera can see |
 | `PlayHelperScout` | `true` | with nothing in hand, show where each offered building would go |
 | `PlayHelperOfferPicks` | `2` | tiles per offered building while scouting |
+| `Autoplay` | `true` | the feature. The loop itself still starts stopped |
+| `AutoplayKey` | `F11` | run / stop |
+| `AutoplayStepKey` | `F10` | one action, then stop |
+| `AutoplayDelay` | `24` | frames between actions |
+| `AutoplayPicksBuildings` | `true` | choose *which* building, not just where |
+| `AutoplayBlocksAchievements` | `false` | treat autoplay like a cheat |
 
 ## Building
 

@@ -51,6 +51,7 @@ Plugin.cs              the entry point: MelonMod lifecycle and module wiring. No
 Config.cs              MelonPreferences binding
 Log.cs                 log formatting, and Guard() so a dead patch says so once
 Reflect.cs             member lookup that survives `new` shadowing. Pure, and tested
+Alive.cs               whether something from the game still exists. Unity's == lies
 Anchors.cs             every game type reached by name, and what to say when one is gone
 Singletons.cs          resolving the game's MonoSingleton<T> instances, in one place
 Json.cs                a flat {string: string} reader that refuses what it cannot parse
@@ -74,8 +75,9 @@ autoplay/Offers.cs     describing a building from the choice bar, with no instan
 autoplay/Value.cs      what one placement on one tile is worth. Pure
 autoplay/Plan.cs       the ranked shortlist. Pure
 autoplay/Overlay.cs    drawing the shortlist. Reads, never writes
-autoplay/Supervisor.cs (stage 3) the loop, and nothing that makes a decision
-autoplay/Exec.cs       (stage 2) acting on that shortlist
+autoplay/Offers.cs     describing an offered building, with no instance to ask
+autoplay/Supervisor.cs the loop: WHEN to act, never what
+autoplay/Exec.cs       the only file in autoplay/ that WRITES to the game
 ```
 
 `Board.cs` being the only file that touches the game's controllers is the point.

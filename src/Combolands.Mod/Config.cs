@@ -29,6 +29,12 @@ namespace Combolands.Mod
         private static MelonPreferences_Entry<bool> _helperLabels;
         private static MelonPreferences_Entry<bool> _helperVisibleOnly;
         private static MelonPreferences_Entry<bool> _helperScout;
+        private static MelonPreferences_Entry<bool> _autoplay;
+        private static MelonPreferences_Entry<string> _autoplayKey;
+        private static MelonPreferences_Entry<string> _autoplayStepKey;
+        private static MelonPreferences_Entry<int> _autoplayDelay;
+        private static MelonPreferences_Entry<bool> _autoplayPicks;
+        private static MelonPreferences_Entry<bool> _autoplayBlocksAchievements;
         private static MelonPreferences_Entry<int> _helperOfferPicks;
 
         internal static void Load()
@@ -102,6 +108,24 @@ namespace Combolands.Mod
             _helperOfferPicks = _cat.CreateEntry("PlayHelperOfferPicks", 2,
                 description: "Tiles highlighted per offered building while scouting.");
 
+            _autoplay = _cat.CreateEntry("Autoplay", true,
+                description: "Enable auto-placement. The loop itself still starts stopped.");
+            _autoplayKey = _cat.CreateEntry("AutoplayKey", "F11",
+                description: "Key that starts and stops the autoplay loop.");
+            _autoplayStepKey = _cat.CreateEntry("AutoplayStepKey", "F10",
+                description: "Key that performs one autoplay action and stops.");
+            _autoplayDelay = _cat.CreateEntry("AutoplayDelay", 24,
+                description: "Frames between autoplay actions. Lower is faster and harder to follow.");
+            _autoplayPicks = _cat.CreateEntry("AutoplayPicksBuildings", true,
+                description: "Let autoplay choose which offered building to place, not just where.");
+
+            // Default off, and the reasoning belongs with the setting: autoplay makes
+            // only legal moves, so it does not change the rules the way a cheat does.
+            // Whether an achievement a bot earned is one you earned is a different
+            // question, and yours.
+            _autoplayBlocksAchievements = _cat.CreateEntry("AutoplayBlocksAchievements", false,
+                description: "Treat using autoplay like using a cheat, and stop submitting achievements.");
+
             _dumpStrings = _cat.CreateEntry("DumpStrings", false,
                 description: "Developer: write every LocalizedStringAsset to generated/strings.en.json on first scene.");
 
@@ -127,6 +151,47 @@ namespace Combolands.Mod
         internal static bool HelperLabels { get { return _helperLabels.Value; } }
         internal static bool HelperVisibleOnly { get { return _helperVisibleOnly.Value; } }
         internal static bool HelperScout { get { return _helperScout.Value; } }
+
+        internal static bool Autoplay { get { return _autoplay.Value; } }
+        internal static int AutoplayDelay { get { return Mathf.Clamp(_autoplayDelay.Value, 2, 600); } }
+        internal static bool AutoplayPicks { get { return _autoplayPicks.Value; } }
+        internal static bool AutoplayBlocksAchievements { get { return _autoplayBlocksAchievements.Value; } }
+
+        private static KeyCode _parsedAutoplayKey = KeyCode.None;
+        private static KeyCode _parsedAutoplayStepKey = KeyCode.None;
+
+        internal static KeyCode AutoplayKey
+        {
+            get
+            {
+                if (_parsedAutoplayKey == KeyCode.None)
+                    _parsedAutoplayKey = ParseKey(_autoplayKey.Value, KeyCode.F11, "AutoplayKey");
+                return _parsedAutoplayKey;
+            }
+        }
+
+        internal static KeyCode AutoplayStepKey
+        {
+            get
+            {
+                if (_parsedAutoplayStepKey == KeyCode.None)
+                    _parsedAutoplayStepKey = ParseKey(_autoplayStepKey.Value, KeyCode.F10, "AutoplayStepKey");
+                return _parsedAutoplayStepKey;
+            }
+        }
+
+        private static KeyCode ParseKey(string name, KeyCode fallback, string setting)
+        {
+            try
+            {
+                return (KeyCode)System.Enum.Parse(typeof(KeyCode), name, true);
+            }
+            catch
+            {
+                Log.Warn("config", setting + " '" + name + "' is not a KeyCode; using " + fallback);
+                return fallback;
+            }
+        }
         internal static int HelperOfferPicks { get { return Mathf.Clamp(_helperOfferPicks.Value, 1, 6); } }
 
         private static KeyCode _parsedHelperKey = KeyCode.None;

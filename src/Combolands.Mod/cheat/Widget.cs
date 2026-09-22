@@ -95,6 +95,7 @@ namespace Combolands.Mod.Cheat
             RunControls();
             Building();
             Helper();
+            Autoplay();
             Pace();
             PermanentUnlocks();
 
@@ -175,6 +176,30 @@ namespace Combolands.Mod.Cheat
             Note(Overlay.Summary());
             Note(Overlay.Legend);
             Note("Suggestions only. Nothing here is written to the game.");
+        }
+
+        // Autoplay is the one thing in this panel that plays FOR you, so it says what
+        // it did last and what it will not touch.
+        private static void Autoplay()
+        {
+            if (!Config.Autoplay) return;
+
+            GUILayout.Space(6f);
+            GUILayout.Label("Autoplay  (" + Config.AutoplayKey + " run, "
+                          + Config.AutoplayStepKey + " step)");
+
+            var running = GUILayout.Toggle(Supervisor.Running, " place buildings automatically");
+            if (running != Supervisor.Running) Supervisor.Toggle();
+
+            if (GUILayout.Button("one step")) Supervisor.Step();
+
+            Note(Supervisor.Status);
+            Note("Places buildings only. Shops, packs, quests and milestones are yours.");
+            Note("Keeps running when the window loses focus. The keys do not - click "
+               + "the window before pressing " + Config.AutoplayKey + " to stop it.");
+            Note(Config.AutoplayBlocksAchievements
+                ? "Counts as a cheat: achievements are blocked while it is used."
+                : "Makes only legal moves, so it does not block achievements.");
         }
 
         private static void Pace()

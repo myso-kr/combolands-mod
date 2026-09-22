@@ -55,6 +55,11 @@
       <HintPath>$(Managed)\UnityEngine.CoreModule.dll</HintPath>
       <Private>false</Private>
     </Reference>
+    <!-- PointerEventData, so autoplay can click a choice card the way a mouse does. -->
+    <Reference Include="UnityEngine.UI">
+      <HintPath>$(Managed)\UnityEngine.UI.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
     <Reference Include="UnityEngine.IMGUIModule">
       <HintPath>$(Managed)\UnityEngine.IMGUIModule.dll</HintPath>
       <Private>false</Private>
