@@ -16,11 +16,25 @@
       "scripting_backend": "mono",
       "build_guid": "6193016432bf430fa7667285284a4c85",
       "observed": "2026-09-22",
-      "status": "analysed",
+      "status": "verified",
       "sha256": {
         "Combolands.exe": "75785e68d39aec95b1c11ff4601650a4c5b3c4b60ad14c4650b166c7fe378f61",
         "Combolands_Data/Managed/Assembly-CSharp.dll": "f95343c07fe6576fda9212310bcf32554fc21ff66bad1d1ed5a363fee8c07253",
         "Combolands_Data/Managed/Assembly-CSharp-firstpass.dll": "a18fc2d41bad2e2d2910baee97d724a13c8d72f7bcdda5239a1dbe79e83dd893"
+      },
+      "game_version": "v1.0.6",
+      "verified": {
+        "date": "2026-09-22",
+        "milestone": "M0",
+        "loader": "MelonLoader v0.7.3 Open-Beta",
+        "melonloader_runtime_type": "net35",
+        "game_type": "MonoBleedingEdge",
+        "game_arch": "x64",
+        "mono": "6.13.0 (Visual Studio built mono)",
+        "clr": "4.0.30319.42000",
+        "harmony": "2.10.2.0",
+        "anchors_resolved": 34,
+        "anchors_broken": 0
       }
     }
   ]

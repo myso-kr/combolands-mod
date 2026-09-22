@@ -3,8 +3,9 @@
 Korean language patch, cheat widget, and autoplay for the Steam roguelike citybuilder
 *Combolands: Roguelike Citybuilder* (Crux Games, AppID 4075620).
 
-> **Status: planning.** Nothing is built yet. The game has been analysed, the
-> approach is fixed, and the work has not started. See the documents below.
+> **Status: M0 passed.** Nothing shippable is built yet. MelonLoader boots the game,
+> and all 34 patch targets in [ANCHORS.md](docs/ANCHORS.md) were confirmed in the
+> live Mono domain. See the documents below.
 
 | Document | What it settles |
 |---|---|

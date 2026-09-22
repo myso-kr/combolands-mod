@@ -42,10 +42,21 @@ dominates this project's cost — the reversing loop. Its console, its log, and 
 we do not have to write.
 
 BepInEx 5 ships smaller (~3 MB zip against MelonLoader's installer) and is the more
-battle-tested Mono loader. If MelonLoader will not boot Unity 6000.0.66f2 Mono,
-that is the fallback, then BepInEx 6 bleeding-edge (`BepInEx.Unity.Mono`).
+battle-tested Mono loader. It was the fallback, then BepInEx 6 bleeding-edge
+(`BepInEx.Unity.Mono`) behind it.
 
-**This is gated on M0.** Nothing else starts until a Hello World mod prints a line.
+**Settled at M0, in the running game.** MelonLoader v0.7.3 identifies the build as
+`MonoBleedingEdge` / `x64`, picks its `net35` runtime path, loads its Mono support
+module, and runs a mod:
+
+```
+Game Type: MonoBleedingEdge        Unity Version: 6000.0.66f2
+Runtime Type: net35                Game Version: v1.0.6
+Mono: 6.13.0     CLR: 4.0.30319.42000     Harmony: 2.10.2.0
+```
+
+A mod built against `MelonLoader/net472/MelonLoader.dll` loads and runs under it, so
+that is what `src/` targets. The fallbacks are not needed and are not carried.
 
 ### 2. One Harmony postfix carries the whole translation
 
@@ -279,10 +290,10 @@ during unattended runs.
 ## Milestones
 
 ```
-M0  Ground truth                                      1 day
-    RightShift+C+L → RightShift+G in the running game
-    MelonLoader Hello World boots on 6000.0.66f2 Mono
-    ── if either fails, the plan changes here and nowhere else ──
+M0  Ground truth                                      DONE 2026-09-22 (partial)
+    [x] MelonLoader v0.7.3 boots 6000.0.66f2 MonoBleedingEdge and runs a mod
+    [x] all 34 anchors in ANCHORS.md resolve in the live Mono domain, 0 broken
+    [ ] RightShift+C+L → RightShift+G in the running game   ← needs a human
 
 M1  Hangul on screen                                  week 1
     Galmuri11.ttf → CreateFontAsset(path) → TMP_Settings.fallbackFontAssets
@@ -346,13 +357,15 @@ is to ask.
 
 ## Risks
 
-| Risk | Kills | Checked at |
+| Risk | Kills | Status |
 |---|---|---|
-| `CreateFontAsset` fails at runtime | the whole language patch | **M1** |
-| MelonLoader will not boot Unity 6000 Mono | everything | **M0** |
-| Game updates move a patch target | some module | `ANCHORS.md` |
+| ~~MelonLoader will not boot Unity 6000 Mono~~ | ~~everything~~ | **retired at M0** |
+| ~~A patch target does not exist as documented~~ | ~~some module~~ | **retired at M0** — 34/34 |
+| `CreateFontAsset` fails at runtime | the whole language patch | open, **M1** |
+| Future game updates move a patch target | some module | `ANCHORS.md` + `tests/Anchors` |
 | Token parser eats Korean particles | translation quality | `tools/lint-locale.py` |
-| Heuristic valuation plays badly | autoplay only | **M4**, visibly |
+| Heuristic valuation plays badly | autoplay only | open, **M4**, visibly |
 
-The first two are cheap to test and expensive to be wrong about, which is why they
-are M0 and M1 rather than discoveries in week 3.
+The two cheapest to test and most expensive to be wrong about are gone on day one
+rather than in week three. The font is the last one of that kind left, which is why
+M1 is a proof and not a feature.

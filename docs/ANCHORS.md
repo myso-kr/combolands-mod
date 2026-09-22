@@ -11,8 +11,13 @@ This mod attaches to **type and member signatures inside `Assembly-CSharp.dll`**
 A game update can move any of them. This table collects, in one place, what breaks
 and where to fix it.
 
-Verified against Steam build `24989173` (Unity 6000.0.66f2,
+Verified against Steam build `24989173` / game `v1.0.6` (Unity 6000.0.66f2,
 `Assembly-CSharp.dll` sha256 `f95343c0…c07253`). See `generated/fingerprint.json`.
+
+**Every row below resolved against the running game on 2026-09-22: 34 members, 0
+broken.** Not read off a decompiler — reflected out of the live Mono domain by the
+M0 probe, with `Assembly-CSharp`, `Assembly-CSharp-firstpass` and
+`Unity.TextMeshPro` all loaded before the first scene.
 
 ## Why these anchors are sturdier than a JS bundle's
 
@@ -57,8 +62,24 @@ These live in `Unity.TextMeshPro.dll`, which moves with the **Unity version**, n
 with Crux's code. It is the anchor group least likely to break on a game patch and
 the one most likely to break on an engine upgrade.
 
-F1 was confirmed present in the shipped DLL by decompilation, not assumed from
-documentation. Whether it *works* at runtime in this build is M1's job.
+F1 is not one method. The build carries **six** `CreateFontAsset` overloads, and
+they give the font work two independent routes:
+
+```
+CreateFontAsset(string familyName, string styleName, int pointSize = 90)   ← OS font
+CreateFontAsset(string fontFilePath, int faceIndex, int samplingPointSize,
+                int atlasPadding, GlyphRenderMode, int atlasWidth, int atlasHeight)
+CreateFontAsset(…, AtlasPopulationMode, bool enableMultiAtlasSupport = true)
+CreateFontAsset(Font font)                                                 ← ×3 overloads
+```
+
+The file-path pair is the plan: ship the TTF, no dependence on the player having a
+Korean font installed. The `familyName` overload is the fallback if loading from a
+path is refused at runtime, and it would mean falling back to Malgun Gothic on the
+player's own machine — a worse look, but not a dead end.
+
+That these *exist* is confirmed in the live runtime. Whether calling one actually
+rasterises Hangul here is M1's job.
 
 ## Cheat
 
@@ -100,13 +121,22 @@ not because the members are fragile, but because *when* it is safe to call
 
 ## What watches this file
 
-`tests/Anchors` reflects over an installed `Assembly-CSharp.dll` and asserts every
-row above still resolves. It skips when no install is pointed at, so CI cannot run
-it — the same gap the reference repo's bundle test has, for the same reason: the
-game's own code cannot be committed.
+Two things, at different costs.
+
+`tests/Anchors` reflects over an installed `Assembly-CSharp.dll` without launching
+anything. It skips when no install is pointed at, so CI cannot run it — the same gap
+the reference repo's bundle test has, for the same reason: the game's own code cannot
+be committed.
 
 ```
 COMBOLANDS_DIR="C:/Program Files (x86)/Steam/steamapps/common/Combolands" dotnet test
 ```
 
-Run it after every game update, before opening a `game_update` issue.
+The **M0 probe** is the stronger check and the more expensive one. It runs as a
+MelonMod inside the live game, so it also proves the loader still boots and the
+assemblies are reachable from a mod's perspective — things a static reflection pass
+cannot tell you. It writes the table above with the resolved signature beside each
+row, which is how you see that a method survived but *changed shape*.
+
+Run the static test after every game update. Run the probe when it disagrees with
+you, or when the loader is what you suspect.
