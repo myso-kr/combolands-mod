@@ -21,6 +21,7 @@ Korean language patch, cheat widget, and autoplay for the Steam roguelike citybu
 | [docs/PLAN.md](docs/PLAN.md) | what this is, what it attaches to, and the order the work happens in |
 | [docs/CONVENTIONS.md](docs/CONVENTIONS.md) | where files go |
 | [docs/ANCHORS.md](docs/ANCHORS.md) | what breaks when the game updates, and where to fix it |
+| [docs/SIMULATION.md](docs/SIMULATION.md) | how the helper computes a placement's worth, how faithfully, and what training found |
 
 ## Installing
 
@@ -176,9 +177,11 @@ points (`+840/wk`) rather than a proximity index, and says `[simulated]` so you
 know which you are looking at. Without that file it falls back to the older
 estimate and says that too.
 
-The weights that trade off points now against points later are fitted rather than
-guessed, by `tools/train`, which plays simulated milestones with no game anywhere
-near it.
+The four weights that trade points now against points later are hand-written, and
+that is a result rather than a default: `tools/train` fits them against simulated
+milestones and, on milestones it had not been fitted to, did not beat them. It
+refuses to write weights that fail that comparison. See
+[docs/SIMULATION.md](docs/SIMULATION.md).
 
 It does **not** aim paints, stat mods or potions. Those apply through a code path
 that begins `if (InputKeys.LMBDown)`, and synthesising that would mean patching the

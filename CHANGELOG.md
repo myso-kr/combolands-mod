@@ -66,7 +66,7 @@ First public release. Three features, all removable by deleting the files you ad
 
 ### Under it
 
-- 71 unit tests over the valuation, the range shape, the placement rules and the
+- 81 unit tests over the valuation, the range shape, the placement rules and the
   reflection helper, running without Unity and without the game
 - `tests/Combolands.Anchors` reads an installed `Assembly-CSharp.dll` as metadata and
   checks every bound anchor in about fifty milliseconds, naming the row that broke.

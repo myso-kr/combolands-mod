@@ -42,14 +42,12 @@ can actually finish, and past every screen between milestones. <kbd>F9</kbd> is 
 quieter version — it highlights where it *would* place what you are holding and
 leaves the clicking to you.
 
-## What it is not
+## How it decides
 
-It is not a simulator. Combolands scores through cascading triggers that mutate live
-state as they run, so there is no way to ask "what would this placement score"
-without committing to it.
-
-What it does instead is read what each building **declares** it wants — a Woodcutter
-says "Trees, 30 points each" — and count what a tile would actually find nearby. Then
+It does not guess what a tile is worth. The game exposes `GetScorePreview`, a
+pure function giving what a building scores and off which tiles, and end of turn
+scores every building on the board — so a week is arithmetic. Dump the rules once
+and the overlay prints real points, checkable against the game's own display. Then
 it leans that answer toward the milestone: with weeks to spare it builds the engine,
 and with two weeks left it takes the points.
 
@@ -83,11 +81,13 @@ ordinary play cannot reach.
 | | |
 |---|---|
 | [Anchor catalogue](ANCHORS) | every signature the mod binds, what breaks when the game moves it, and where to fix it |
+| [The simulator](SIMULATION) | how a placement's worth is computed rather than guessed, and how faithfully |
 | [Directory conventions](CONVENTIONS) | where code goes, and why the valuation has no Unity types in it |
 | [The plan](PLAN) | what this is, what it attaches to, and the order the work happened in |
 
 The parts that decide anything — the board snapshot, the valuation, the placement
 plan, the rules, the pace — carry no Unity and no game types at all. That is what
-lets 71 tests run on a machine that has never seen the game. A separate suite reads
+lets 81 tests run on a machine that has never seen the game, and lets the policy
+trainer play tens of thousands of simulated milestones there. A separate suite reads
 an installed `Assembly-CSharp.dll` as metadata and checks every anchor in about fifty
 milliseconds, naming the row that broke.

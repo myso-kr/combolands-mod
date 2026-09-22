@@ -77,20 +77,36 @@ namespace Combolands.Train
             var best = Fit(scenarios, options, start, baseline);
 
             var final = Judge(best, scenarios, options.Seed);
-            Console.WriteLine("\nfitted: {0}", final);
+            Console.WriteLine("\nfitted, on the milestones it was fitted to: {0}", final);
             Console.WriteLine("  {0}", best);
-            Console.WriteLine("\ncleared {0:+0.0%;-0.0%;no change} more milestones than the hand-written weights",
-                final.ClearRate - baseline.ClearRate);
+
+            // That number is optimistic, and saying so is arithmetic rather than
+            // modesty: those are the scenarios the search was allowed to look at, and
+            // across several hundred sampled policies some of the gain is the search
+            // finding their quirks rather than learning the game. The comparison that
+            // decides whether to ship is on milestones neither policy has seen.
+            var holdout = Holdout(rules, pool, targets, options);
+            var heldBase = Judge(start, holdout, options.Seed + Fresh);
+            var heldFinal = Judge(best, holdout, options.Seed + Fresh);
+
+            Console.WriteLine("\non {0} milestones neither has seen:", holdout.Length);
+            Console.WriteLine("  hand-written: {0}", heldBase);
+            Console.WriteLine("  fitted:       {0}", heldFinal);
+            Console.WriteLine("  difference:   {0:+0.0%;-0.0%;none} cleared, {1:+0.0%;-0.0%;none} margin",
+                heldFinal.ClearRate - heldBase.ClearRate, heldFinal.Margin - heldBase.Margin);
 
             // Refusing to write a policy that is worse than the one already shipped is
-            // the whole safety net here. Training is stochastic and a bad seed is a
-            // real outcome; overwriting good weights with it would be a silent
-            // regression that only shows up as a missed milestone days later.
-            if (final.ClearRate < baseline.ClearRate)
+            // the whole safety net here, and it is judged on the HELD-OUT milestones.
+            // Training is stochastic, a bad seed is a real outcome, and a policy that
+            // only looks better on the scenarios it was fitted to has learned their
+            // quirks rather than the game. Either way, overwriting good weights would
+            // be a silent regression that surfaces days later as a missed milestone.
+            if (heldFinal.Score < heldBase.Score)
             {
                 Console.Error.WriteLine(
-                    "\nThe fitted policy clears FEWER milestones than the hand-written one.\n" +
-                    "Nothing was written. Try more episodes or another seed.");
+                    "\nOn milestones it was not fitted to, the fitted policy is no better than\n" +
+                    "the hand-written one. Nothing was written - that is overfitting, not\n" +
+                    "improvement. Try more episodes, or accept that the shape is already right.");
                 return 1;
             }
 
@@ -100,6 +116,19 @@ namespace Combolands.Train
             Console.WriteLine("\nwrote {0}", output);
 
             return 0;
+        }
+
+        // Far enough from the training seed that the two sets share nothing. One
+        // `Random`, walked, so the holdout is as varied as the training set rather
+        // than the same board sampled repeatedly.
+        private const int Fresh = 99991;
+
+        private static Scenario[] Holdout(Rules rules, int[] pool, int[] targets, Options options)
+        {
+            var world = new Random(options.Seed + Fresh);
+            return Enumerable.Range(0, options.Episodes)
+                             .Select(_ => Scenario.Sample(rules, pool, targets, world))
+                             .ToArray();
         }
 
         // --- the cross-entropy method ---------------------------------------------
