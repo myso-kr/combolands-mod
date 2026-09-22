@@ -173,6 +173,7 @@ namespace Combolands.Mod.Cheat
             var on = GUILayout.Toggle(Overlay.Enabled, " highlight the best placements");
             if (on != Overlay.Enabled) Overlay.Toggle();
             Note(Overlay.Summary());
+            Note(Overlay.Legend);
             Note("Suggestions only. Nothing here is written to the game.");
         }
 

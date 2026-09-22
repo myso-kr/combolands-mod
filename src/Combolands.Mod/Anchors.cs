@@ -13,9 +13,7 @@ namespace Combolands.Mod
     // The names below are the catalogue in docs/ANCHORS.md. Keep them in step.
     internal static class Anchors
     {
-        internal const BindingFlags All = BindingFlags.Public | BindingFlags.NonPublic
-                                        | BindingFlags.Instance | BindingFlags.Static
-                                        | BindingFlags.FlattenHierarchy;
+        internal const BindingFlags All = Reflect.All;
 
         private static Assembly _game;
 
@@ -51,50 +49,40 @@ namespace Combolands.Mod
             return t;
         }
 
+        // Lookup itself lives in Reflect, which is pure and tested. Anchors adds the
+        // one thing a test cannot: saying out loud which anchor went missing.
         internal static MethodInfo Method(Type owner, string name, params System.Type[] args)
         {
             if (owner == null) return null;
-            var m = args.Length == 0
-                ? owner.GetMethod(name, All, null, System.Type.EmptyTypes, null)
-                : owner.GetMethod(name, All, null, args, null);
-            if (m == null) Miss("method", owner.FullName + "." + name);
-            return m;
+            var found = Reflect.Method(owner, name, args);
+            if (found == null) Miss("method", owner.FullName + "." + name);
+            return found;
         }
 
-        // For methods whose parameter types we do not want to spell out - an enum
-        // from the game assembly, say. Ambiguity is reported rather than guessed at.
         internal static MethodInfo MethodByName(Type owner, string name, int argCount)
         {
             if (owner == null) return null;
-            MethodInfo found = null;
-            foreach (var m in owner.GetMethods(All))
-            {
-                if (m.Name != name || m.GetParameters().Length != argCount) continue;
-                if (found != null)
-                {
-                    Miss("unambiguous method", owner.FullName + "." + name);
-                    return null;
-                }
-                found = m;
-            }
-            if (found == null) Miss("method", owner.FullName + "." + name);
+            bool ambiguous;
+            var found = Reflect.MethodByName(owner, name, argCount, out ambiguous);
+            if (found == null)
+                Miss(ambiguous ? "unambiguous method" : "method", owner.FullName + "." + name);
             return found;
         }
 
         internal static PropertyInfo Property(Type owner, string name)
         {
             if (owner == null) return null;
-            var p = owner.GetProperty(name, All);
-            if (p == null) Miss("property", owner.FullName + "." + name);
-            return p;
+            var found = Reflect.Property(owner, name);
+            if (found == null) Miss("property", owner.FullName + "." + name);
+            return found;
         }
 
         internal static FieldInfo Field(Type owner, string name)
         {
             if (owner == null) return null;
-            var f = owner.GetField(name, All);
-            if (f == null) Miss("field", owner.FullName + "." + name);
-            return f;
+            var found = Reflect.Field(owner, name);
+            if (found == null) Miss("field", owner.FullName + "." + name);
+            return found;
         }
 
         private static void Miss(string kind, string what)

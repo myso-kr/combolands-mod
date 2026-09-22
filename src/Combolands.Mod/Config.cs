@@ -25,6 +25,8 @@ namespace Combolands.Mod
         private static MelonPreferences_Entry<bool> _helper;
         private static MelonPreferences_Entry<string> _helperKey;
         private static MelonPreferences_Entry<int> _helperShortlist;
+        private static MelonPreferences_Entry<int> _helperSpread;
+        private static MelonPreferences_Entry<bool> _helperLabels;
 
         internal static void Load()
         {
@@ -72,8 +74,21 @@ namespace Combolands.Mod
                 description: "Enable the placement helper overlay.");
             _helperKey = _cat.CreateEntry("PlayHelperKey", "F9",
                 description: "Key that toggles the placement overlay. Any UnityEngine.KeyCode name.");
-            _helperShortlist = _cat.CreateEntry("PlayHelperShortlist", 5,
+            // Eight rather than five. With separation on, each one is a genuinely
+            // different part of the map, so more of them is more choice rather than
+            // more clutter.
+            _helperShortlist = _cat.CreateEntry("PlayHelperShortlist", 8,
                 description: "How many tiles the overlay highlights.");
+
+            // Every scoring term is an absolute count of nearby pieces, so tiles
+            // beside a building always outscore open ground and the top five land in
+            // one cluster - five highlights that are really one suggestion. This is
+            // how far apart they have to be. 0 turns it off.
+            _helperSpread = _cat.CreateEntry("PlayHelperSpread", 3,
+                description: "Minimum tiles between highlighted suggestions. 0 shows the raw ranking.");
+
+            _helperLabels = _cat.CreateEntry("PlayHelperLabels", true,
+                description: "Draw #rank and xN target count on each highlighted tile.");
 
             _dumpStrings = _cat.CreateEntry("DumpStrings", false,
                 description: "Developer: write every LocalizedStringAsset to generated/strings.en.json on first scene.");
@@ -96,6 +111,8 @@ namespace Combolands.Mod
 
         internal static bool PlayHelper { get { return _helper.Value; } }
         internal static int HelperShortlist { get { return Mathf.Clamp(_helperShortlist.Value, 1, 20); } }
+        internal static int HelperSpread { get { return Mathf.Clamp(_helperSpread.Value, 0, 12); } }
+        internal static bool HelperLabels { get { return _helperLabels.Value; } }
 
         private static KeyCode _parsedHelperKey = KeyCode.None;
 

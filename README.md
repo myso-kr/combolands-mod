@@ -56,21 +56,31 @@ rest. Those do **not** trip the achievement gate — the mod cannot see them.
 
 ## Play helper
 
-**F9.** While you are holding a building, it highlights the five tiles it thinks are
-best and numbers the top three. It **reads game state and writes nothing** — the
-worst it can do is be wrong and be ignored, which is why it ships before the
-valuation is any good.
+**F9.** While you are holding a building, it highlights the eight tiles it rates
+highest, spread across the map so they are eight real choices rather than one
+cluster. Each is labelled:
 
-It is a heuristic, not a simulation, and the difference is not a hedge. Combolands
-scores through cascading triggers that mutate live state as they run, so there is no
-way to ask "what would this placement score" without committing to it. What the
-helper counts instead is the shape the game rewards: pieces this one would reach,
-pieces that would reach it, pieces touching it, how often those pairs share a
-category, and — negatively — how much open ground the placement costs.
+```
+#3      the rank
+x2.5    how many things this building wants within reach
+```
 
-Tiles are ranked over cheap checks, then the top few are put to the game's own
-placement rule before anything is drawn, so nothing is ever highlighted that the
-game would refuse.
+It **reads game state and writes nothing** — the worst it can do is be wrong and be
+ignored, which is why it ships before the valuation is finished.
+
+Most of what it knows comes from the game itself. Every building declares what it is
+looking for and what each one is worth — a Woodcutter says "Trees, 30 each" — so the
+helper reads those declarations rather than guessing at affinity, and normalises
+them so a building paying 6 a target is not ranked below one paying 30 for doing the
+same job. Reach, adjacency and shared categories are left as tiebreakers.
+
+It is still a heuristic, not a simulation. Combolands scores through cascading
+triggers that mutate live state as they run, so there is no way to ask "what would
+this placement score" without committing to it.
+
+Tiles the game would refuse are never highlighted, including the "no other of this
+building in range" rule — which the helper has to evaluate itself, because the
+game's own check reads a cache that cannot answer about thirty tiles in one frame.
 
 ## Configuration
 
@@ -90,7 +100,9 @@ game would refuse.
 | `BlockAchievements` | `true` | stop submitting achievements once any cheat is used |
 | `PlayHelper` | `true` | |
 | `PlayHelperKey` | `F9` | any `UnityEngine.KeyCode` name |
-| `PlayHelperShortlist` | `5` | how many tiles to highlight |
+| `PlayHelperShortlist` | `8` | how many tiles to highlight |
+| `PlayHelperSpread` | `3` | minimum tiles between suggestions. 0 shows the raw ranking |
+| `PlayHelperLabels` | `true` | draw `#rank` and `xN` on each tile |
 
 ## Building
 

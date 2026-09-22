@@ -424,6 +424,20 @@ reproduced rather than approximated, and pinned by tests.
 Crane and Stable extend a building's range through other buildings. Stage 1 ignores
 that and says so here rather than in a comment nobody reads.
 
+### A reflection bug that disabled the feature silently
+
+`Entities.Building` redeclares `GamePiece.Behaviour` with `new` and a narrower type.
+`Type.GetProperty(name, FlattenHierarchy)` finds **both** and throws
+`AmbiguousMatchException` — inside a `Log.Guard`, which caught it, said so once, and
+turned the helper off for the rest of the session. On screen it looked like the
+overlay simply did nothing.
+
+Two changes came out of it. `Reflect.cs` walks the hierarchy from the most derived
+type with `DeclaredOnly`, so shadowing resolves the way the game's own code binds
+and cannot be ambiguous between levels; it is pure, and linked into `tests/` with
+the exact shape that broke. And `Log.HasFailed` lets a dead module say so in the
+panel — before, "nothing to suggest" and "this crashed an hour ago" looked identical.
+
 ### The valuation problem, stated honestly
 
 Combolands scores through cascading triggers (`GameState/TriggerController.cs`,
@@ -447,24 +461,70 @@ Re-implementing `PointsScorer` as a pure function would be exact and would break
 every game update. Stage 1 exists to find out whether the cheap heuristic is already
 good enough to follow, by putting it on screen where a human can disagree with it.
 
-What it actually counts, with weights in one named block in `Value.cs`:
+**Buildings declare what they want.** That turned out to be the whole game:
 
-| Term | Why |
-|---|---|
-| pieces this one would reach | most buildings score "for each X in range" |
-| pieces that would reach it | the same relation, the other way round — and not the same thing |
-| pieces touching it | adjacency effects are the game's other main verb |
-| pairs sharing a category | only where the two can actually interact |
-| buildable neighbours lost | **negative**. Without it everything piles into one corner, because the densest tile is always the one beside what is already dense |
+```csharp
+GamePiece.TargetTags                     // Woodcutter -> Trees
+Behaviour.GetScoreForTag(piece, tag)     // 30
+Values.TargetCategories                  // Barn -> Husbandry
+Values.GetScoreForTargetCategory(cat)    // 12
+```
 
-A building that says "for each `[Husbandry]` in range" is invisible to this. But a
-tile sitting in a cluster it shares categories with is where such a building wants
-to be anyway, which is the bet stage 1 is testing.
+All four are pure lookups into tables the behaviour already holds — nothing is
+triggered and no state is touched. So the valuation does not have to guess at
+affinity: it reads the building's own declaration and counts what it would actually
+find nearby. Hold a Woodcutter and the tiles with the most Trees in reach light up.
 
-Legality is not guessed at. The shortlist is ranked wide over cheap checks, then the
-top few are put to the game's own `CanBuildBuildingAt` before anything is drawn —
-thirty reflection calls rather than thousands, and no highlight the game would
-refuse.
+The scores are **normalised by the largest one the candidate declares**. A building
+paying 30 a tree and one paying 6 a tree are both simply doing their best; without
+normalising, the first looks five times better placed than the second.
+
+| Term | Weight | Why |
+|---|---|---|
+| declared targets found | **2.5** | the real rule, normalised. This decides the ranking |
+| pieces this one would reach | 0.35 | for buildings whose effect is not "score per target" |
+| pieces that would reach it | 0.45 | the same relation the other way round, and not the same thing |
+| pieces touching it | 0.30 | adjacency is the game's other main verb |
+| pairs sharing a category | 0.60 | a weak proxy, now only a tiebreaker |
+| neighbours of the same type | **−1.0** | see below |
+| room to grow | +0.05 | see below |
+
+The generic terms are what is left for buildings whose effect is not expressible as
+"score per target nearby". They separate ties; they no longer decide anything.
+
+### Four things only playing it could find
+
+**Same-type neighbours were ranked highest.** Two copies of a building share every
+category by construction, so the affinity term loved them — while the game's own
+text keeps excluding them: "Does not affect other `[Fisher]`", "excluding other
+`[HerbGarden]`". They now carry a penalty instead.
+
+**The game's own legality check leaked.** `CanBuildBuildingAt` rejects a tile where
+another of the same building is in range, and the helper was suggesting those
+anyway. The cause is in `BuildingExtensions`:
+
+```csharp
+_rangeCache is Dictionary<Building, HashSet<Tile>>       // keyed by Building ALONE
+GetTilesInRange(overrideTile)  ->  returns the cached set on a hit
+```
+
+Probing thirty tiles in one frame gets one answer thirty times. The fix is not to
+fight the cache: `ignoreAllPlacementRestrictions` gates **exactly that one check**
+and nothing else, so the helper passes `true` — turning it off — and `Rules.cs`
+evaluates it properly, per tile, in pure code. Everything else `CanBuildBuildingAt`
+knows stays authoritative.
+
+**On an empty board it pointed at the map edge.** With every synergy term at zero
+the only signal left was a *penalty* on open neighbours, so corners won — the worst
+possible advice for a first placement. The term is now positive and means "room to
+grow". Keeping suggestions apart is the shortlist's job, not this one's.
+
+**The top five were one suggestion.** Every term is an absolute count of nearby
+pieces, so tiles beside a building always outscore open ground and the whole
+shortlist landed in one cluster. `Plan` now requires picks to be `PlayHelperSpread`
+tiles apart, which costs ranking fidelity on purpose: #2 is not the second-best
+tile, it is the best tile **somewhere else**. That is the question a player holding a
+building is actually asking.
 
 `CheatsHandler.SpeedUpScoring` is already there for skipping scoring animation
 during unattended runs.
@@ -503,7 +563,7 @@ M4  Play helper (stage 1)                             DONE 2026-09-23
     [x] Snapshot / Board / Value / Plan / State / Overlay
     [x] the game's own range shape reproduced exactly
     [x] 14 unit tests over hand-written boards, no game, no Unity
-    [ ] judged by eye over a real run - the only test that matters here
+    [x] judged by eye over a real run - and corrected four times because of it
 
 M5  Ship                                              week 5
     release.yml · README · docs site · NOTICE/THIRD-PARTY

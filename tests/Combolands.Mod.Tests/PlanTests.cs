@@ -8,17 +8,23 @@ namespace Combolands.Mod.Tests
     // the whole reason Snapshot carries no Unity types.
     public class PlanTests
     {
+        // Tags matter now: two pieces of the SAME tag are scored as a same-type pair
+        // rather than as category affinity, so a fixture that leaves every tag at the
+        // default 0 is testing the wrong thing. The candidate is tag 1 and placed
+        // buildings are tag 2 unless a test says otherwise.
+        private const int CandidateTag = 1, OtherTag = 2;
+
         private static Snapshot Empty(int w, int h, params int[] candidateCategories)
         {
             var board = new Snapshot { Width = w, Height = h, Buildable = new bool[w * h] };
             for (int i = 0; i < board.Buildable.Length; i++) board.Buildable[i] = true;
-            board.Candidate = new Piece { Range = 2, Categories = candidateCategories };
+            board.Candidate = new Piece { Tag = CandidateTag, Range = 2, Categories = candidateCategories };
             return board;
         }
 
         private static void Place(Snapshot board, int x, int y, int range, params int[] categories)
         {
-            board.Buildings.Add(new Piece { X = x, Y = y, Range = range, Categories = categories });
+            board.Buildings.Add(new Piece { X = x, Y = y, Tag = OtherTag, Range = range, Categories = categories });
             board.Buildable[y * board.Width + x] = false;
         }
 
@@ -30,12 +36,13 @@ namespace Combolands.Mod.Tests
 
             Assert.Equal(3, best.Count);
 
-            // With nothing to synergise with, the only term left is the crowding
-            // penalty, so the corners - which lose the fewest neighbours - win. That
-            // is a real property of the weights and worth pinning: if someone flips
-            // the sign of WeightCrowding, this is what notices.
+            // With nothing to synergise with, the only term left is room to grow, so
+            // the pick is open ground rather than the map edge. It used to be the
+            // corner - see TargetTests.OnABareBoardTheTopPickIsNotOnTheEdge for the
+            // regression that fixed.
             Assert.Equal(0, best[0].Score.Covers);
             Assert.Equal(0, best[0].Score.Adjacent);
+            Assert.True(best[0].Score.Room > 0);
         }
 
         [Fact]
@@ -121,7 +128,7 @@ namespace Combolands.Mod.Tests
             // same, and they are not the same: one building targeting another is not
             // the other targeting it.
             var board = Empty(9, 9);
-            board.Candidate = new Piece { Range = 2, Categories = new int[0] };
+            board.Candidate = new Piece { Tag = CandidateTag, Range = 2, Categories = new int[0] };
             Place(board, 4, 4, 0);
 
             var score = Value.Score(board, 4, 5);

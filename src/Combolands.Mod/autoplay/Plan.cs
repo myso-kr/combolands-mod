@@ -14,13 +14,18 @@ namespace Combolands.Mod.Autoplay
             public Value.Breakdown Score;
         }
 
-        // Ranks every buildable tile and returns the best `count`.
+        // Ranks every legal tile and returns the best `count`, spread out.
         //
-        // `shortlist` is deliberately larger than what gets shown: Overlay asks the
-        // game whether each one is really legal, and the game's rules - terrain,
-        // range restrictions, nesting - reject some. Ranking a few more than needed
-        // means the shortlist survives that filtering without a second pass.
-        internal static List<Candidate> Best(Snapshot board, int count)
+        // `separation` is not cosmetic. Every term in Value is an absolute count of
+        // nearby pieces, so a tile beside a building always outscores open ground and
+        // the top five land inside one cluster - five highlights that are really one
+        // suggestion, with genuinely different options never shown. Requiring picks to
+        // be `separation` tiles apart turns the shortlist back into a set of choices.
+        //
+        // It costs ranking fidelity on purpose: #2 is no longer the second-best tile,
+        // it is the best tile that is somewhere else. That is the question a player
+        // holding a building is actually asking.
+        internal static List<Candidate> Best(Snapshot board, int count, int separation = 0)
         {
             var all = new List<Candidate>(256);
 
@@ -28,6 +33,12 @@ namespace Combolands.Mod.Autoplay
                 for (int x = 0; x < board.Width; x++)
                 {
                     if (!board.IsBuildable(x, y)) continue;
+
+                    // Rejected before scoring, not filtered after: a forbidden tile
+                    // should never reach the shortlist at all, or a board where most
+                    // good tiles are illegal would show five bad ones.
+                    if (!Rules.Allows(board, x, y)) continue;
+
                     var score = Value.Score(board, x, y);
                     all.Add(new Candidate { X = x, Y = y, Score = score });
                 }
@@ -37,8 +48,44 @@ namespace Combolands.Mod.Autoplay
             // every entry in it is correct.
             all.Sort(Compare);
 
-            if (all.Count > count) all.RemoveRange(count, all.Count - count);
-            return all;
+            if (separation <= 0)
+            {
+                if (all.Count > count) all.RemoveRange(count, all.Count - count);
+                return all;
+            }
+
+            var picked = new List<Candidate>(count);
+            Take(all, picked, count, separation);
+
+            // If the board is too cramped to find `count` tiles that far apart, fill
+            // the rest from the same ranking without the constraint. Showing four
+            // suggestions because the fifth was crowded out would look like a bug.
+            if (picked.Count < count) Take(all, picked, count, 0);
+            return picked;
+        }
+
+        private static void Take(List<Candidate> ranked, List<Candidate> picked, int count, int separation)
+        {
+            for (int i = 0; i < ranked.Count && picked.Count < count; i++)
+            {
+                var candidate = ranked[i];
+                if (TooClose(picked, candidate, separation)) continue;
+                picked.Add(candidate);
+            }
+        }
+
+        private static bool TooClose(List<Candidate> picked, Candidate candidate, int separation)
+        {
+            for (int i = 0; i < picked.Count; i++)
+            {
+                int dx = Math.Abs(picked[i].X - candidate.X);
+                int dy = Math.Abs(picked[i].Y - candidate.Y);
+                // Chebyshev: a square of side 2*separation+1 around each pick. Cheaper
+                // than Euclidean and, for "is this visibly somewhere else", the same
+                // answer.
+                if (dx <= separation && dy <= separation) return true;
+            }
+            return false;
         }
 
         private static int Compare(Candidate a, Candidate b)

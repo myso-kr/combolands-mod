@@ -49,8 +49,11 @@ If the sentence needs an "and", it is already two.
 ```
 Plugin.cs              the entry point: MelonMod lifecycle and module wiring. Nothing else
 Config.cs              MelonPreferences binding
-Log.cs                 log formatting
+Log.cs                 log formatting, and Guard() so a dead patch says so once
+Reflect.cs             member lookup that survives `new` shadowing. Pure, and tested
+Anchors.cs             every game type reached by name, and what to say when one is gone
 Singletons.cs          resolving the game's MonoSingleton<T> instances, in one place
+Json.cs                a flat {string: string} reader that refuses what it cannot parse
 
 i18n/Catalog.cs        locale/<lang>/strings.json → Key lookup
 i18n/Patches.cs        Harmony patches on LocalizedStringAsset and _BaseData
@@ -63,13 +66,15 @@ cheat/Run.cs           weeks, target score, milestone
 cheat/Build.cs         placement restriction bypass, spawning
 cheat/Unlocks.cs       guild unlock and level
 
-autoplay/Supervisor.cs the loop, and nothing that makes a decision
+autoplay/Snapshot.cs   a board as plain data. No Unity types, no game types
 autoplay/Board.cs      the only code that touches MapController/BuildingController
 autoplay/State.cs      InteractionState gating — when it is safe to act
-autoplay/Value.cs      what one placement on one tile is worth
-autoplay/Plan.cs       the ranked shortlist
-autoplay/Exec.cs       acting on that shortlist
+autoplay/Rules.cs      the placement rules we must evaluate ourselves. Pure
+autoplay/Value.cs      what one placement on one tile is worth. Pure
+autoplay/Plan.cs       the ranked shortlist. Pure
 autoplay/Overlay.cs    drawing the shortlist. Reads, never writes
+autoplay/Supervisor.cs (stage 3) the loop, and nothing that makes a decision
+autoplay/Exec.cs       (stage 2) acting on that shortlist
 ```
 
 `Board.cs` being the only file that touches the game's controllers is the point.
@@ -78,6 +83,11 @@ neither is testable. Split, `Value.cs` takes a plain board snapshot and CI can r
 
 `Overlay.cs` never writing is what makes stage 1 of the play helper safe to ship
 before the valuation is any good.
+
+`Snapshot.cs`, `Rules.cs`, `Value.cs` and `Plan.cs` carry **no Unity and no game
+types**, which is what lets `tests/` link them as source and run them where neither
+Unity nor the game exists. That constraint is the reason `Board.cs` exists at all.
+Adding a `UnityEngine` using to any of those four takes the tests with it.
 
 ### Translations (`locale/`)
 
@@ -94,17 +104,25 @@ ignored, because it is the game's text.
 
 ## Testing what only the real game can show
 
-Unit tests run against hand-written board fixtures, which is the only way to state a
-case precisely — and also why none of them would notice a patch target drifting.
-
-`tests/Anchors` closes that gap: pointed at an installed copy, it reflects over
-`Assembly-CSharp.dll` and asserts that every type and method in `ANCHORS.md` still
-exists with the signature we patch. It skips itself when no install is pointed at,
-so CI stays green, and it is what tells you which anchor moved after an update.
+45 tests run against hand-written board fixtures and hand-written type hierarchies.
+That is the only way to state a case precisely — and also why none of them would
+notice a patch target drifting in the real game.
 
 ```
-COMBOLANDS_DIR="C:/Program Files (x86)/Steam/steamapps/common/Combolands" dotnet test
+dotnet test tests/Combolands.Mod.Tests        # no game, no Unity, ~30ms
 ```
+
+Two gaps are open and worth naming rather than implying away.
+
+**Nothing watches the anchors.** A test pointed at an installed `Assembly-CSharp.dll`
+that asserts every row of `ANCHORS.md` still resolves would catch a game update
+before a player does. The M0 probe does this from inside the running game; there is
+no offline version yet.
+
+**Nothing watches the valuation's judgement.** Whether a suggestion is *good* is not
+a property any fixture can assert — every correction to it so far came from playing
+a run and disagreeing with what was on screen. The tests pin the mechanics the
+judgement is built from; they cannot pin the judgement.
 
 ## Commit and branch
 

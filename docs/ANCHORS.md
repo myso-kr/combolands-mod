@@ -147,6 +147,19 @@ bypass has to be rebuilt against the method body.
 | P9 | tiles | `Environment.Tile` — `IsEmpty`, `CantBuildOn` | the helper suggests occupied tiles | `autoplay/Board.cs` |
 | P10 | piece shape | `Entities.Building` — `X`, `Y`, `Range`, `Tag`, `Categories` | valuation quality | `autoplay/Board.cs` |
 | P11 | range shape | ``Library.Grid.GridDrawingAlgorithms.GetFilledCircle`` — `dx*dx + dy*dy < r*r + r` | every highlight is subtly wrong | `autoplay/Snapshot.cs` |
+| P12 | declared targets | `GamePiece.TargetTags` · `_GamePieceBehaviour.GetScoreForTag` · `GamePieceLocalValues.TargetCategories` · `GetScoreForTargetCategory` | **the helper stops knowing what a building wants** and falls back to bare adjacency | `autoplay/Board.cs` |
+| P13 | same-type rule | `_BuildingBehaviour.HasRangePlacementRestriction(GamePiece)` | the helper suggests tiles the game refuses | `autoplay/Board.cs`, `autoplay/Rules.cs` |
+| P14 | rule escape hatch | `CanBuildBuildingAt(..., bool ignoreAllPlacementRestrictions)` gating **only** the same-type check | the helper has to trust a stale cache | `autoplay/Board.cs` |
+
+P12 is what makes a suggestion worth following. Everything else in the valuation is
+a proxy; these four are the game telling us, in its own numbers, what a building is
+looking for. If they move, the helper keeps working and quietly gets much worse —
+which is the failure mode worth watching for, because nothing breaks.
+
+P14 is a dependency on a **precise** fact rather than a general one: that argument
+gates one `if` and no others. A refactor that widened it to cover more checks would
+silently make the helper suggest illegal tiles, and it would still compile, run and
+look fine. Re-read `CanBuildBuildingAt` after a game update.
 
 P11 is the one anchor this mod **copies rather than calls**. Asking the game whether
 each of 1,188 tiles is in range of each building would be tens of thousands of
@@ -158,6 +171,19 @@ failing — the helper would simply start drawing confidently wrong highlights. 
 P1 and P4 are read-only and public. P5 and P6 are where stage 3's difficulty lives —
 not because the members are fragile, but because *when* it is safe to call
 `ChangeToState` is not expressible as a signature.
+
+## The hazard that is not in the table
+
+`Entities.Building` redeclares `GamePiece.Behaviour` with `new`, and the game does
+this in more than one place. `Type.GetProperty(name, FlattenHierarchy)` finds both
+declarations and throws `AmbiguousMatchException` — which, inside a `Log.Guard`,
+disabled the placement helper for a whole session while looking on screen like it
+simply did nothing.
+
+Every lookup in this mod therefore goes through `Reflect.cs`, which walks the
+hierarchy from the most derived type with `DeclaredOnly`. **Do not reach for
+`GetProperty`, `GetField` or `GetMethod` directly.** The shapes that broke it are
+pinned in `tests/ReflectTests.cs`.
 
 ## What watches this file
 

@@ -29,6 +29,13 @@ namespace Combolands.Mod
             MelonLogger.Error(module + ": " + message);
         }
 
+        // Whether a module has already thrown and gone quiet. The panel reads this so
+        // a dead feature reports itself in the UI instead of just doing nothing.
+        internal static bool HasFailed(string module)
+        {
+            return Silenced.Contains(module);
+        }
+
         internal static void Guard(string module, Action body)
         {
             try

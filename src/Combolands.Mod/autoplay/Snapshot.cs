@@ -62,6 +62,50 @@ namespace Combolands.Mod.Autoplay
         // point is to try it everywhere.
         public Piece Candidate;
 
+        // Whether the candidate carries the "no other of my type in range" rule.
+        // Read once per refresh from the game's own HasRangePlacementRestriction,
+        // which depends on equipped heirlooms rather than on the tile.
+        public bool CandidateRangeRestricted;
+
+        // GameTag values, resolved by NAME so renumbering the enum cannot silently
+        // change which building the rules are about. -1 when not found.
+        public int PlazaTag = -1;
+        public int CorruptedObeliskTag = -1;
+
+        // What the candidate says it is looking for, and what each one is worth.
+        //
+        // Read straight off the game: GamePiece.TargetTags with GetScoreForTag, and
+        // Values.TargetCategories with GetScoreForTargetCategory. This is the closest
+        // the helper gets to the real scoring rule - a Woodcutter genuinely does
+        // declare "Trees, 30 each" - and it is what makes a suggestion on turn one
+        // worth anything, when there is nothing else on the board but terrain.
+        public Dictionary<int, int> TargetTagScores = new Dictionary<int, int>();
+        public Dictionary<int, int> TargetCategoryScores = new Dictionary<int, int>();
+
+        // The largest single declared score, used to normalise. Buildings pay wildly
+        // different amounts per target, and without this a Woodcutter (30 a tree)
+        // would look five times better placed than a building paying 6 - when both
+        // are simply doing their best.
+        public int MaxTargetScore;
+
+        // What this candidate would earn from `other` being nearby. A tag match wins
+        // over a category match rather than adding to it: the game's behaviours pay
+        // for a target once.
+        public int DeclaredScoreFor(Piece other)
+        {
+            int score;
+            if (TargetTagScores != null && TargetTagScores.TryGetValue(other.Tag, out score))
+                return score;
+
+            if (TargetCategoryScores == null || other.Categories == null) return 0;
+
+            int best = 0;
+            for (int i = 0; i < other.Categories.Length; i++)
+                if (TargetCategoryScores.TryGetValue(other.Categories[i], out score) && score > best)
+                    best = score;
+            return best;
+        }
+
         public bool InBounds(int x, int y)
         {
             return x >= 0 && y >= 0 && x < Width && y < Height;
