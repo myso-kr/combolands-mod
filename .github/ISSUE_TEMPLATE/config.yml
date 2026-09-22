@@ -1,0 +1,11 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Questions and usage
+    url: https://github.com/myso-kr/combolands-mod/discussions
+    about: For how to use it rather than a bug, please use Discussions.
+  - name: A problem with the game itself
+    url: https://store.steampowered.com/app/4075620/
+    about: This is an unofficial mod. Take problems with the game to Crux Games, and please do not report a modded session to them as a game bug.
+  - name: A problem with MelonLoader
+    url: https://github.com/LavaGang/MelonLoader/issues
+    about: The loader is not bundled here and is not ours. If the game does not start at all and no Latest.log is written, it is theirs.

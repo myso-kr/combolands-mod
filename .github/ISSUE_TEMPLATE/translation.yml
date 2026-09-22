@@ -1,0 +1,64 @@
+name: Translation
+description: A Korean string is wrong, awkward, or does not fit on screen
+labels: ["translation"]
+body:
+  - type: markdown
+    attributes:
+      value: >-
+        Wrong is worth reporting, and so is *awkward* — a translation that is
+        technically correct and reads badly is still a bad translation. Overflowing
+        a button is a bug like any other.
+
+  - type: input
+    id: key
+    attributes:
+      label: The string key, if you know it
+      description: >-
+        The keys live in `UserData/Combolands/locale/ko/strings.json`. Searching it
+        for the Korean text you are looking at finds the key. If you cannot find it,
+        leave this blank and describe where the text appears instead.
+      placeholder: "ui.shop.skip"
+    validations: { required: false }
+
+  - type: textarea
+    id: where
+    attributes:
+      label: Where it appears
+      description: A screenshot is worth more than a description here, especially for anything that does not fit.
+    validations: { required: true }
+
+  - type: textarea
+    id: suggestion
+    attributes:
+      label: What it says, and what it should say
+      placeholder: |
+        Now:      건물을 배치 하세요
+        Should be: 건물을 배치하세요
+    validations: { required: true }
+
+  - type: dropdown
+    id: kind
+    attributes:
+      label: Kind
+      options:
+        - "Wrong meaning"
+        - "Awkward or unnatural"
+        - "Particle or spacing"
+        - "Does not fit on screen"
+        - "Untranslated (still English)"
+        - "Renders as boxes or the wrong size"
+    validations: { required: true }
+
+  - type: markdown
+    attributes:
+      value: |
+        **A pull request is very welcome instead.** Edit `locale/ko/strings.json`
+        and run:
+
+        ```
+        python tools/lint-locale.py locale/ko/strings.json
+        ```
+
+        It encodes the game's own `StringProcessor` rules. The one that catches
+        people: a Korean particle glued to a `[token]` does not fail loudly — the
+        game renders the token's *name* at the player instead.

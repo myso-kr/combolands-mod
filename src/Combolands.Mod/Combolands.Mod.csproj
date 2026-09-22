@@ -13,7 +13,7 @@
     <AssemblyName>CombolandsMod</AssemblyName>
     <RootNamespace>Combolands.Mod</RootNamespace>
     <LangVersion>latest</LangVersion>
-    <Version>0.1.0</Version>
+    <Version>0.4.0</Version>
     <Company>myso-kr</Company>
     <Product>Combolands Mod</Product>
     <Description>Korean language patch, cheat widget and autoplay for Combolands.</Description>

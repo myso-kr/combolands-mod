@@ -7,7 +7,7 @@ using Combolands.Mod.Autoplay;
 using Combolands.Mod.Cheat;
 using Combolands.Mod.I18n;
 
-[assembly: MelonInfo(typeof(Plugin), "Combolands Mod", "0.3.0", "myso-kr",
+[assembly: MelonInfo(typeof(Plugin), "Combolands Mod", "0.4.0", "myso-kr",
     "https://github.com/myso-kr/combolands-mod")]
 [assembly: MelonGame("Crux Games", "Combolands")]
 

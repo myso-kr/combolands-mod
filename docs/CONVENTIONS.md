@@ -3,6 +3,7 @@ layout: default
 title: "Directory conventions"
 description: "Where code goes in this repository and why — one responsibility per file, one place per decision."
 lang: en
+permalink: /CONVENTIONS/
 ---
 
 # Directory conventions

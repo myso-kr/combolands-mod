@@ -1,0 +1,109 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  tests:
+    name: Tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with: { dotnet-version: '8.0.x' }
+
+      # The reasoning, on hand-written fixtures. Snapshot, Value, Plan, Rules and Pace
+      # carry no Unity and no game types, which is the whole reason the tests can link
+      # them as source and run here. Adding a `using UnityEngine` to any of those five
+      # takes this job with it.
+      - name: Unit tests
+        run: dotnet test tests/Combolands.Mod.Tests --nologo -v q
+
+      # The anchors. With no game installed this SKIPS the forty that read metadata and
+      # still runs the ones that hold docs/ANCHORS.md and the catalogue to each other -
+      # a row with no entry is an anchor nobody verifies, an entry with no row is a
+      # failure nobody can look up. Those two need no game and are worth having here.
+      - name: Anchor catalogue
+        run: dotnet test tests/Combolands.Anchors --nologo -v q
+
+  consistency:
+    name: The repository agrees with itself
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v4
+        with: { python-version: '3.12' }
+
+      # MelonLoader prints MelonInfo into every log, so that string is the version a
+      # bug report will quote - and it is a literal in an attribute that MSBuild cannot
+      # supply. It had already drifted once: csproj 0.1.0 against a log saying 0.3.0.
+      - name: One version, everywhere
+        run: python tools/version.py --check
+
+      # The translation has to survive the game's own StringProcessor. A particle glued
+      # to a [token] does not fail loudly - it renders the token name at the player.
+      - name: Translations lint
+        run: python tools/lint-locale.py locale/ko/strings.json
+
+      - name: JSON parses
+        run: |
+          set -e
+          for f in $(git ls-files '*.json'); do
+            python -c "import json,sys; json.load(open(sys.argv[1], encoding='utf-8'))" "$f" \
+              || { echo "::error file=$f::failed to parse"; exit 1; }
+          done
+
+      # Nothing extracted from the game may be committed. .gitignore says so, but a
+      # `git add -f` would walk straight past it, and the one thing this repository
+      # cannot take back is publishing somebody else's text.
+      - name: Nothing from the game is committed
+        run: |
+          set -e
+          fail=0
+          for f in $(git ls-files); do
+            case "$f" in
+              generated/strings.*|generated/decompiled/*|extracted/*)
+                echo "::error file=$f::extracted from the game - this must not be committed"; fail=1 ;;
+              *.dll|*.exe|*.so|*.dylib|*.bundle|*.assets|*.resS|*.unity3d)
+                echo "::error file=$f::a binary that does not belong in source"; fail=1 ;;
+            esac
+          done
+          exit $fail
+
+      # The font is redistributed inside the release archive, which makes its licence
+      # text a condition rather than a courtesy. Losing it is the failure nobody
+      # notices until it matters.
+      - name: The bundled font keeps its licence
+        run: |
+          set -e
+          test -s locale/fonts/Galmuri11.ttf   || { echo "::error::the bundled font is missing"; exit 1; }
+          test -s locale/fonts/OFL-Galmuri.txt || { echo "::error::the font ships without its OFL text"; exit 1; }
+          grep -q "Galmuri" THIRD-PARTY.md     || { echo "::error file=THIRD-PARTY.md::no attribution for the bundled font"; exit 1; }
+          echo "$(sha256sum locale/fonts/Galmuri11.ttf)"
+
+      # The archive layout is a claim the README makes to a user standing in front of
+      # their game folder with a zip open. Building it here would need the game;
+      # checking that the tool and the README describe the same tree does not. The
+      # same script checks the string count and that every cited anchor id exists.
+      - name: The documents still describe this repository
+        run: python tools/check-docs.py
+
+  # A green tick here means "the repository does not contradict itself", NOT "this
+  # works on game 1.0.6". The plugin compiles against the game's own UnityEngine,
+  # uGUI and TextMeshPro, and those are not ours to commit or to approximate - a DLL
+  # built here against some other Unity would be the worst kind of green tick, for a
+  # mod that binds to signatures for a living.
+  #
+  # What checks the game: `dotnet test tests/Combolands.Anchors` on a machine that has
+  # one (forty anchors, fifty milliseconds), and the M0 probe from inside a running
+  # game. See docs/ANCHORS.md.

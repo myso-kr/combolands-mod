@@ -1,0 +1,74 @@
+name: Bug report
+description: Something misbehaves, and it does not look like a game update caused it
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: >-
+        If the game updated just now, please use **A game update broke it** instead —
+        it asks for the one thing that settles those, and they are fixed differently.
+
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened
+      description: What you expected and what actually happened, as two separate things.
+    validations: { required: true }
+
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      placeholder: |
+        1. Start a run, get to the second milestone
+        2. Press F11
+        3. It places two buildings, then stops with a building still held
+    validations: { required: true }
+
+  - type: dropdown
+    id: feature
+    attributes:
+      label: Which part
+      options:
+        - "Translation or font"
+        - "Cheat widget (F8)"
+        - "Placement helper (F9)"
+        - "Autoplay (F11 / F10)"
+        - "Installing or starting up"
+    validations: { required: true }
+
+  - type: input
+    id: versions
+    attributes:
+      label: Mod version and game version
+      placeholder: "mod 0.4.0, game v1.0.6"
+    validations: { required: true }
+
+  - type: textarea
+    id: log
+    attributes:
+      label: MelonLoader/Latest.log
+      description: >-
+        Every line containing `[Combolands Mod]`, and any stack trace near the time
+        it happened. A feature that has gone quiet usually says why in there — the
+        mod re-reports a failure every thirty seconds with a running count, so one
+        is almost certainly present.
+      render: text
+    validations: { required: true }
+
+  - type: textarea
+    id: config
+    attributes:
+      label: "UserData/MelonPreferences.cfg"
+      description: "The `[Combolands]` section, if you changed anything in it."
+      render: toml
+    validations: { required: false }
+
+  - type: checkboxes
+    id: obvious
+    attributes:
+      label: Before filing
+      options:
+        - label: "I am on the latest release"
+        - label: "No other mod is installed (or I checked with this one alone)"
+        - label: "I know cheats and autoplay can put a run in states ordinary play cannot, and my save is backed up"

@@ -3,17 +3,67 @@
 Korean language patch, cheat widget, and autoplay for the Steam roguelike citybuilder
 *Combolands: Roguelike Citybuilder* (Crux Games, AppID 4075620).
 
-> **Status: language patch, cheat widget and placement helper work.** Every string
-> the game has is translated and renders in the retail build; the cheat panel is on
-> F8 and the helper overlay on F9. Acting on the helper automatically — stages 2 and
-> 3 — is not written yet. No game file is modified: the loader and the mod are added
+[![CI](https://github.com/myso-kr/combolands-mod/actions/workflows/ci.yml/badge.svg)](https://github.com/myso-kr/combolands-mod/actions/workflows/ci.yml)
+[![Release](https://img.shields.io/github/v/release/myso-kr/combolands-mod?sort=semver)](https://github.com/myso-kr/combolands-mod/releases/latest)
+[![License](https://img.shields.io/badge/license-MIT-blue)](LICENSE)
+
+> **Status: all three work.** Every string the game has is translated and renders in
+> the retail build, the cheat panel is on F8, and autoplay plays a run on its own —
+> placing, choosing, shopping, taking council requests and getting past every screen
+> between milestones. **No game file is modified**: the loader and the mod are added
 > beside them and uninstall by deletion.
+>
+> Verified against Steam build `24989173` / game `v1.0.6`.
 
 | Document | What it settles |
 |---|---|
+| [CHANGELOG.md](CHANGELOG.md) | what each release changed, and the game build it was checked on |
 | [docs/PLAN.md](docs/PLAN.md) | what this is, what it attaches to, and the order the work happens in |
 | [docs/CONVENTIONS.md](docs/CONVENTIONS.md) | where files go |
 | [docs/ANCHORS.md](docs/ANCHORS.md) | what breaks when the game updates, and where to fix it |
+
+## Installing
+
+You need **MelonLoader v0.7.3** first. It is not bundled here: it is somebody else's
+loader, and vendoring it would make their bug reports ours.
+
+1. Install [MelonLoader](https://melonloader.co/) into the game folder — the one
+   holding `Combolands.exe`. It is the automated installer, or drop
+   `version.dll` and `MelonLoader/` in by hand.
+2. Download `combolands-mod-vX.Y.Z.zip` from
+   [Releases](https://github.com/myso-kr/combolands-mod/releases/latest) and unpack
+   it **over the game folder**. It only ever adds files:
+
+   ```
+   Combolands/
+   ├─ Mods/CombolandsMod.dll                          the mod
+   ├─ UserData/Combolands/locale/ko/strings.json      the translation
+   └─ UserData/Combolands/fonts/Galmuri11.ttf         the font it renders with
+   ```
+
+   The zip also carries `README.md`, `CHANGELOG.md`, `LICENSE`, `NOTICE`,
+   `THIRD-PARTY.md` and `licenses/OFL-Galmuri.txt`. Those are paperwork rather than
+   install steps - the font is redistributed inside the archive, which makes its OFL
+   text a condition rather than a courtesy - and you can drop them anywhere or
+   nowhere.
+
+3. Start the game. `MelonLoader/Latest.log` should say
+   `Combolands Mod v0.4.0` and `i18n: loaded 1078 strings from ko`.
+
+Verify the download against the `.sha256` published beside it:
+
+```
+sha256sum -c combolands-mod-vX.Y.Z.zip.sha256
+```
+
+**Uninstalling** is deleting what you added: `Mods/CombolandsMod.dll`,
+`UserData/Combolands/`, and — if you want MelonLoader gone too — `version.dll` and
+`MelonLoader/`. Nothing in the game folder was changed, so there is nothing to
+restore. Your save is the game's own and is untouched.
+
+> **Back up your save before using cheats or autoplay.** They put the run into
+> states ordinary play cannot reach. The save lives with the game's own data, not
+> with this mod.
 
 ## Translation
 
@@ -176,18 +226,45 @@ earned is a different question, and `AutoplayBlocksAchievements` is there for it
 
 ```
 dotnet build src/Combolands.Mod -c Release
-dotnet test tests/Combolands.Mod.Tests
+dotnet test tests/Combolands.Mod.Tests     # the reasoning; no game, no Unity
+dotnet test tests/Combolands.Anchors       # the game is still shaped as expected
 python tools/lint-locale.py locale/ko/strings.json --english generated/strings.en.json
 python tools/status.py
+python tools/check-docs.py                 # the documents still describe this repository
 ```
 
-The tests run **without the game and without Unity**. `Snapshot.cs`, `Value.cs` and
-`Plan.cs` carry no Unity types, so the test project links them as source — which is
-the reason `Board.cs`, the one file that touches the game's controllers, is separate
-from the valuation at all.
+The unit tests run **without the game and without Unity**. `Snapshot.cs`, `Value.cs`
+and `Plan.cs` carry no Unity types, so the test project links them as source — which
+is the reason `Board.cs`, the one file that touches the game's controllers, is
+separate from the valuation at all.
 
-`GameDir` defaults to the Steam path and is overridable:
-`-p:GameDir="D:\SteamLibrary\steamapps\common\Combolands"`.
+The anchor tests read an installed `Assembly-CSharp.dll` as metadata — nothing is
+loaded or executed — and check every anchor the mod binds, naming the one that broke.
+With no game they skip rather than pass.
+
+`GameDir` defaults to the Steam path and is overridable, for the build and for the
+tests:
+
+```
+dotnet build src/Combolands.Mod -c Release -p:GameDir="D:\SteamLibrary\steamapps\common\Combolands"
+COMBOLANDS_DIR="D:\SteamLibrary\steamapps\common\Combolands" dotnet test tests/Combolands.Anchors
+```
+
+### Releasing
+
+```
+python tools/version.py --check      # csproj, MelonInfo and CHANGELOG agree
+python tools/package.py              # build, verify, zip, checksum
+git tag v0.4.0 && git push origin v0.4.0
+python tools/package.py --publish v0.4.0
+```
+
+The tag starts a workflow that runs the tests, composes the release notes and opens
+a **draft** release. The archive is uploaded by `--publish` from a machine that has
+the game, and the reason is not laziness: the plugin compiles against the game's own
+UnityEngine, uGUI and TextMeshPro, which are not ours to commit or to approximate. A
+DLL built on a runner against some other Unity would be the worst kind of green tick
+for a mod that binds to signatures for a living.
 
 ---
 

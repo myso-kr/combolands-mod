@@ -3,6 +3,7 @@ layout: default
 title: "Anchor catalogue"
 description: "What the mod patches, what breaks when the game moves it, and where to fix it."
 lang: en
+permalink: /ANCHORS/
 ---
 
 # Anchor catalogue

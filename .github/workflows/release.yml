@@ -1,0 +1,130 @@
+name: Release
+
+# Pushing a tag opens a draft release with the notes already written.
+#
+#   python tools/version.py --check v0.4.0
+#   git tag v0.4.0 && git push origin v0.4.0
+#   python tools/package.py --publish v0.4.0      # from a machine with the game
+#
+# The archive is not built here, and that is a decision rather than a gap. The plugin
+# compiles against the game's own UnityEngine, uGUI and TextMeshPro; those are not
+# ours to commit or to approximate, and a DLL built on a runner against some other
+# Unity would be the worst kind of green tick for a mod that binds to signatures for
+# a living. So the runner does what a runner can settle, and the archive comes from a
+# machine that has the game - with a reproducible zip and a published checksum, so
+# what arrives can be checked against what was built.
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Tag to prepare by hand (e.g. v0.4.0)'
+        required: true
+
+permissions:
+  contents: write        # needed to create the release
+
+jobs:
+  verify:
+    name: Verify the tag
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with: { dotnet-version: '8.0.x' }
+      - uses: actions/setup-python@v4
+        with: { python-version: '3.12' }
+
+      # A tag is how a release starts, so a tag that disagrees with the code is a
+      # release of something other than what it claims. This checks the tag against
+      # the csproj, the MelonInfo string MelonLoader prints into every log, and the
+      # newest CHANGELOG heading - all four have to say the same number.
+      - name: The tag, the code and the changelog agree
+        run: python tools/version.py --check "${{ github.ref_name || github.event.inputs.tag }}"
+
+      - name: Unit tests
+        run: dotnet test tests/Combolands.Mod.Tests --nologo -v q
+
+      - name: Anchor catalogue
+        run: dotnet test tests/Combolands.Anchors --nologo -v q
+
+      - name: Translations lint
+        run: python tools/lint-locale.py locale/ko/strings.json
+
+      - name: The documents still describe this repository
+        run: python tools/check-docs.py
+
+  draft:
+    name: Open the draft release
+    needs: verify
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v4
+        with: { python-version: '3.12' }
+
+      # The notes must say which game build this was verified against. The mod binds
+      # to signatures inside Assembly-CSharp.dll, so without that an issue report
+      # cannot be triaged at all - "it does not work" and "the game updated" look
+      # identical from the outside.
+      - name: Compose the release notes
+        shell: bash
+        run: |
+          set -euo pipefail
+          TAG="${GITHUB_REF_NAME:-${{ github.event.inputs.tag }}}"
+
+          # Which build this was checked against. A release whose notes cannot say
+          # that is one nobody can triage, so the tool exits non-zero rather than
+          # printing a blank, and `set -e` above makes that stop the release.
+          python tools/fingerprint.py --markdown > fingerprint.md
+
+          # Everything under the newest CHANGELOG heading, up to the next one.
+          awk '/^## /{ if (seen) exit; seen=1; next } seen' CHANGELOG.md > body.md
+
+          {
+            echo "## Verified game version"
+            echo
+            cat fingerprint.md
+            echo
+            echo "> Checked against the version above. After a game update the"
+            echo "> translation may revert to English, the widgets may not appear, or"
+            echo "> autoplay may stop - that is expected and fixable. Please open an"
+            echo "> issue with the game-update template."
+            echo
+            echo "## Installing"
+            echo
+            echo "Install [MelonLoader](https://melonloader.co/) v0.7.3 into the game"
+            echo "folder first, then unpack \`combolands-mod-$TAG.zip\` over it. The"
+            echo "archive only adds files, and uninstalling is deleting them."
+            echo
+            echo '```'
+            echo 'Mods/CombolandsMod.dll'
+            echo 'UserData/Combolands/locale/ko/strings.json'
+            echo 'UserData/Combolands/fonts/Galmuri11.ttf'
+            echo '```'
+            echo
+            echo "**F8** cheats · **F9** placement helper · **F11** autoplay · **F10** one step"
+            echo
+            echo "Back up your save before using cheats or autoplay."
+            echo
+            echo "## What changed"
+            echo
+            cat body.md
+          } > notes.md
+          cat notes.md
+
+      # A draft, not a release. The archive has to be attached from a machine with
+      # the game before this is anything a person should download, and a published
+      # release with no files is worse than no release at all.
+      - name: Draft
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ github.ref_name || github.event.inputs.tag }}
+          name: ${{ github.ref_name || github.event.inputs.tag }}
+          body_path: notes.md
+          draft: true
+
+      - name: What happens next
+        run: |
+          echo "::notice::draft opened - now run: python tools/package.py --publish ${{ github.ref_name || github.event.inputs.tag }}"

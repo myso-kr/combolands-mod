@@ -3,6 +3,7 @@ layout: default
 title: "Build plan"
 description: "What this mod is, what it attaches to, and the order the work happens in."
 lang: en
+permalink: /PLAN/
 ---
 
 # Build plan
@@ -691,18 +692,34 @@ M4  Play helper (stages 1-2)                          DONE 2026-09-23
     [x] 14 unit tests over hand-written boards, no game, no Unity
     [x] judged by eye over a real run - and corrected four times because of it
 
-M5  Ship                                              week 5
-    release.yml · README · docs site · NOTICE/THIRD-PARTY
-    GitHub Release with the plugin, locale, font and licences
+M5  Autoplay (stages 2-3)                            DONE 2026-09-23
+    [x] Exec.cs - the only writer, taking the player's own path
+    [x] Supervisor: screens, items, placement, offers, in that order
+    [x] plays toward the milestone - Pace decides engine against points
+    [x] shop, packs and council requests chosen rather than clicked through
+    [x] 71 unit tests; every correction so far came from watching a run
 
-M6+ Autoplay stages 2–3                               open-ended
+M6  Ship                                              DONE 2026-09-23
+    [x] one version in three places, checked by tools/version.py
+    [x] CHANGELOG, install and uninstall in the README, docs site
+    [x] ci.yml - tests, lint, version, licence paperwork, docs claims
+    [x] release.yml - a tag opens a draft with the verified build in the notes
+    [x] tools/package.py - reproducible zip, sha256, OFL text not optional
+    [x] tests/Combolands.Anchors - the offline anchor check
+    [ ] GitHub repository and the first public release
+
+M7+ What playing it turns up                          open-ended
+    the intro MessagePanel needs real input (WaitForInput.Any)
+    targeting consumables need a real LMB down
+    hardcoded TMP text swept with UnityExplorer
 ```
 
 ## Distribution
 
 `myso-kr/combolands-mod`, MIT, mirroring `now-thats-a-big-dragon-mod`.
 
-A tag push builds and attaches the archive:
+A tag push opens a **draft** release with the notes already written, and
+`tools/package.py --publish` attaches the archive:
 
 ```
 combolands-mod-vX.Y.Z.zip
@@ -714,8 +731,22 @@ combolands-mod-vX.Y.Z.zip
 ```
 
 The font is redistributed inside that archive, so the OFL text is a **condition, not
-a courtesy** — the release job copies it without `|| true`, the same as the reference
-repo does.
+a courtesy** — `tools/package.py` copies it without `|| true` and fails the build if
+it is not there, the same as the reference repo does.
+
+### Why the archive is not built on a runner
+
+The plugin compiles against the game's own `UnityEngine`, `uGUI` and `TextMeshPro`.
+Those are not ours to commit, and they are not reconstructible: a runner could be
+made to compile against *some* Unity of *some* version, and the DLL it produced would
+be built against different metadata than the game ships. For a mod that binds to
+signatures for a living, that is the worst kind of green tick.
+
+So CI settles what a runner can settle — the tests, the linter, the version, the
+licence paperwork, the documents' own claims — and says plainly that a green tick
+means "the repository does not contradict itself", not "this works on game 1.0.6".
+The archive is built where a game is, with a reproducible zip and a published
+sha256, so what a user downloads can be checked against what was built.
 
 MelonLoader is not bundled. It is the user's install step, and vendoring someone
 else's loader into our archive makes their bug reports ours.

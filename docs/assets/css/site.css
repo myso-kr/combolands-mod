@@ -1,0 +1,234 @@
+/* Four pages and a download button. Everything here is in service of reading, and
+   nothing is loaded from anywhere else - no webfont, no framework, no analytics. A
+   page about a mod that adds three files to a game folder should not itself pull
+   twelve.
+
+   The palette is the game's: warm brick and parchment, which is what Combolands
+   looks like at a glance, and a blue-grey that is nowhere near either so links are
+   unmistakably links. */
+
+:root {
+  --ink:        #241c15;
+  --ink-soft:   #5a4e42;
+  --paper:      #f6efe4;
+  --paper-deep: #ebe0cf;
+  --rule:       #d8c9b0;
+  --brick:      #b45f22;
+  --brick-deep: #8c4715;
+  --link:       #2f5d7c;
+  --code:       #efe6d6;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --ink:        #ece3d4;
+    --ink-soft:   #a99b88;
+    --paper:      #191512;
+    --paper-deep: #221c17;
+    --rule:       #3b322a;
+    --brick:      #e08a45;
+    --brick-deep: #f0a462;
+    --link:       #83b6d8;
+    --code:       #221c17;
+  }
+}
+
+* { box-sizing: border-box; }
+
+html { -webkit-text-size-adjust: 100%; }
+
+body {
+  margin: 0;
+  background: var(--paper);
+  color: var(--ink);
+  font: 16px/1.65 ui-sans-serif, system-ui, "Segoe UI", "Apple SD Gothic Neo",
+        "Malgun Gothic", "Noto Sans KR", sans-serif;
+  /* Korean sets tighter than English at the same size and the page is bilingual,
+     so the measure is set in ch rather than px - it stays readable in both. */
+  overflow-wrap: break-word;
+}
+
+.skip {
+  position: absolute;
+  left: -9999px;
+}
+.skip:focus {
+  left: 1rem;
+  top: 1rem;
+  z-index: 10;
+  padding: .5rem .9rem;
+  background: var(--brick);
+  color: #fff;
+  border-radius: 4px;
+}
+
+/* ---- header ------------------------------------------------------------- */
+
+.top {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 1rem;
+  max-width: 78ch;
+  margin: 0 auto;
+  padding: 1.4rem 1.2rem .9rem;
+  border-bottom: 1px solid var(--rule);
+}
+
+.mark {
+  font-weight: 700;
+  font-size: 1.05rem;
+  letter-spacing: -.01em;
+  color: var(--ink);
+  text-decoration: none;
+}
+.mark span {
+  color: var(--brick);
+  margin-left: .35em;
+  font-weight: 600;
+}
+
+.top nav {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+  margin-left: auto;
+  font-size: .9rem;
+}
+.top nav a { color: var(--ink-soft); text-decoration: none; }
+.top nav a:hover { color: var(--link); text-decoration: underline; }
+
+.langs {
+  display: inline-flex;
+  gap: .5rem;
+  padding-left: 1rem;
+  border-left: 1px solid var(--rule);
+}
+.langs a[aria-current="page"] {
+  color: var(--ink);
+  font-weight: 600;
+}
+
+/* ---- content ------------------------------------------------------------ */
+
+main {
+  max-width: 78ch;
+  margin: 0 auto;
+  padding: 2rem 1.2rem 3rem;
+}
+
+h1 {
+  font-size: 2rem;
+  line-height: 1.2;
+  letter-spacing: -.02em;
+  margin: .2em 0 .4em;
+}
+h2 {
+  font-size: 1.3rem;
+  margin: 2.4rem 0 .6rem;
+  padding-top: .9rem;
+  border-top: 1px solid var(--rule);
+}
+h3 { font-size: 1.05rem; margin: 1.6rem 0 .4rem; }
+
+h1 + p { font-size: 1.1rem; color: var(--ink-soft); }
+
+a { color: var(--link); }
+
+/* The one thing most visitors came for. */
+.get {
+  display: inline-block;
+  margin: .4rem .5rem .4rem 0;
+  padding: .7rem 1.3rem;
+  background: var(--brick);
+  color: #fff;
+  font-weight: 600;
+  text-decoration: none;
+  border-radius: 5px;
+}
+.get:hover { background: var(--brick-deep); }
+.get.quiet {
+  background: transparent;
+  color: var(--link);
+  border: 1px solid var(--rule);
+}
+
+/* A note the reader should not skip: the save-backup warning, the game-update
+   warning. Coloured on the edge only, so it reads as emphasis and not as an error. */
+.note {
+  margin: 1.4rem 0;
+  padding: .9rem 1.1rem;
+  background: var(--paper-deep);
+  border-left: 3px solid var(--brick);
+  border-radius: 0 4px 4px 0;
+}
+.note p:first-child { margin-top: 0; }
+.note p:last-child { margin-bottom: 0; }
+
+code, pre {
+  font-family: ui-monospace, "Cascadia Mono", "SF Mono", Menlo, Consolas, monospace;
+  font-size: .89em;
+}
+code {
+  background: var(--code);
+  padding: .12em .35em;
+  border-radius: 3px;
+}
+pre {
+  background: var(--code);
+  padding: .9rem 1.1rem;
+  border-radius: 5px;
+  border: 1px solid var(--rule);
+  overflow-x: auto;
+  line-height: 1.5;
+}
+pre code { background: none; padding: 0; }
+
+kbd {
+  font-family: inherit;
+  font-size: .85em;
+  font-weight: 600;
+  padding: .1em .45em;
+  border: 1px solid var(--rule);
+  border-bottom-width: 2px;
+  border-radius: 4px;
+  background: var(--paper-deep);
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 1.2rem 0;
+  font-size: .94rem;
+}
+th, td {
+  text-align: left;
+  padding: .5rem .7rem;
+  border-bottom: 1px solid var(--rule);
+  vertical-align: top;
+}
+th { font-weight: 600; }
+
+blockquote {
+  margin: 1.2rem 0;
+  padding-left: 1rem;
+  border-left: 3px solid var(--rule);
+  color: var(--ink-soft);
+}
+
+/* ---- footer ------------------------------------------------------------- */
+
+.bottom {
+  max-width: 78ch;
+  margin: 0 auto;
+  padding: 1.4rem 1.2rem 3rem;
+  border-top: 1px solid var(--rule);
+  color: var(--ink-soft);
+  font-size: .85rem;
+}
+.bottom p { margin: .6rem 0; }
+
+@media (max-width: 34rem) {
+  .top nav { margin-left: 0; width: 100%; }
+  h1 { font-size: 1.6rem; }
+}

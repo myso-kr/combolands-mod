@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html lang="{{ page.lang | default: site.lang }}">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+
+{%- assign name = page.title | default: site.title -%}
+{%- assign blurb = page.description | default: site.description -%}
+{%- assign here = site.url | append: site.baseurl | append: page.url -%}
+
+<title>{% if page.title and page.url != '/' %}{{ page.title }} — Combolands mod{% else %}{{ site.title }}{% endif %}</title>
+<meta name="description" content="{{ blurb | strip_newlines | strip }}">
+<link rel="canonical" href="{{ here }}">
+
+<!-- Two languages of the same page. Each names the other and itself, which is what
+     makes the pair a cluster rather than two pages that happen to look alike. -->
+{%- if page.url == '/' or page.url == '/ko/' %}
+<link rel="alternate" hreflang="en" href="{{ site.url }}{{ site.baseurl }}/">
+<link rel="alternate" hreflang="ko" href="{{ site.url }}{{ site.baseurl }}/ko/">
+<link rel="alternate" hreflang="x-default" href="{{ site.url }}{{ site.baseurl }}/">
+{%- endif %}
+
+<meta property="og:type" content="website">
+<meta property="og:title" content="{{ name }}">
+<meta property="og:description" content="{{ blurb | strip_newlines | strip }}">
+<meta property="og:url" content="{{ here }}">
+<meta property="og:locale" content="{% if page.lang == 'ko' %}ko_KR{% else %}en_US{% endif %}">
+<meta name="twitter:card" content="summary">
+
+<link rel="stylesheet" href="{{ site.baseurl }}/assets/css/site.css">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'><rect width='16' height='16' rx='3' fill='%23c9762f'/><rect x='3' y='3' width='4' height='4' fill='%23f2e3cc'/><rect x='9' y='3' width='4' height='4' fill='%23f2e3cc'/><rect x='3' y='9' width='10' height='4' fill='%23f2e3cc'/></svg>">
+</head>
+<body>
+
+<a class="skip" href="#content">Skip to content</a>
+
+<header class="top">
+  <a class="mark" href="{{ site.baseurl }}/{% if page.lang == 'ko' %}ko/{% endif %}">Combolands<span>mod</span></a>
+  <nav>
+    <a href="https://github.com/myso-kr/combolands-mod/releases/latest">Download</a>
+    <a href="{{ site.baseurl }}/ANCHORS">Anchors</a>
+    <a href="https://github.com/myso-kr/combolands-mod">GitHub</a>
+    <span class="langs">
+      <a href="{{ site.baseurl }}/"   lang="en" hreflang="en" {% if page.lang != 'ko' %}aria-current="page"{% endif %}>EN</a>
+      <a href="{{ site.baseurl }}/ko/" lang="ko" hreflang="ko" {% if page.lang == 'ko' %}aria-current="page"{% endif %}>한국어</a>
+    </span>
+  </nav>
+</header>
+
+<main id="content">
+  {{ content }}
+</main>
+
+<footer class="bottom">
+  <p>
+    <strong>Unofficial fan-made mod.</strong> Not affiliated with or endorsed by
+    Crux Games or Valve. Requires a legitimately purchased copy of the game; this
+    project contains no original game text or assets. Cheats and autoplay can put a
+    run into states ordinary play cannot reach — back up your save.
+  </p>
+  <p>
+    MIT licensed. Bundles <a href="https://github.com/quiple/galmuri">Galmuri11</a>
+    under the SIL Open Font License 1.1 — see
+    <a href="https://github.com/myso-kr/combolands-mod/blob/main/THIRD-PARTY.md">THIRD-PARTY.md</a>.
+  </p>
+</footer>
+
+</body>
+</html>

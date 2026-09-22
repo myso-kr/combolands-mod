@@ -1,0 +1,71 @@
+name: A game update broke it
+description: The translation, the cheats or autoplay stopped working after the game updated
+title: "[game X.Y.Z] anchor broken: "
+labels: ["game-update", "bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        This mod attaches to **type and member signatures inside the game's own
+        assemblies**. A game update can move any of them, and then something here
+        stops working. That is expected, and it is fixable — usually in one line
+        once we know *which* signature moved.
+
+        `MelonLoader/Latest.log` is the whole diagnosis. The mod logs a warning
+        naming the anchor it could not find, and re-reports it every thirty seconds
+        with a count, so the log will say so even if you missed the first one.
+
+  - type: input
+    id: version
+    attributes:
+      label: Game version and Steam buildid
+      description: >-
+        Steam → right-click the game → Properties → Updates, at the bottom.
+        Or the first lines of `Latest.log`.
+      placeholder: "v1.0.7, buildid 25123456"
+    validations: { required: true }
+
+  - type: input
+    id: mod
+    attributes:
+      label: Mod version
+      description: "The line in `Latest.log` that reads `Combolands Mod vX.Y.Z`."
+      placeholder: "0.4.0"
+    validations: { required: true }
+
+  - type: checkboxes
+    id: broken
+    attributes:
+      label: What is not working
+      options:
+        - label: "The translation (the UI is in English)"
+        - label: "The font (empty boxes, or Hangul the wrong size)"
+        - label: "The cheat widget, F8"
+        - label: "The placement helper, F9"
+        - label: "Autoplay, F11 — it stops or never starts"
+        - label: "The game does not start at all"
+
+  - type: textarea
+    id: log
+    attributes:
+      label: MelonLoader/Latest.log
+      description: >-
+        The whole file, or at least every line containing `[Combolands Mod]`.
+        Lines that name an anchor — `A1 missing`, `CanBuildBuildingAt not found` —
+        are the ones that settle it. The log contains your game path, which you are
+        welcome to redact.
+      render: text
+    validations: { required: true }
+
+  - type: markdown
+    attributes:
+      value: |
+        **If you build from source**, this one command answers the same question
+        offline and names the row directly:
+
+        ```
+        dotnet test tests/Combolands.Anchors
+        ```
+
+        Pasting its output is the fastest possible report. See
+        [`docs/ANCHORS.md`](../blob/main/docs/ANCHORS.md) for what each row breaks.

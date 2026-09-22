@@ -1,0 +1,32 @@
+# GitHub Pages (Settings → Pages → Source: main, /docs)
+title: "Combolands mod — Korean patch, cheats, and autoplay"
+description: >-
+  Unofficial mod for the Steam roguelike citybuilder Combolands. A Korean language
+  patch, an in-game cheat widget, and an autoplay that plays a run on its own.
+  Built on MelonLoader. No game file is modified.
+url: "https://myso-kr.github.io"
+baseurl: "/combolands-mod"
+lang: en
+
+author: myso-kr
+
+# No remote theme. docs/_layouts/default.html and docs/assets/css/site.css are this
+# site's own, and there are four pages - a theme would be more configuration than
+# content.
+#
+# No plugins either. The layout writes its own canonical, og: and hreflang, and
+# jekyll-seo-tag would emit a second answer to the same question. There is no
+# sitemap plugin because the site is two languages of the same page plus three
+# reference documents, which is small enough to say by hand if it ever needs saying.
+
+# Every page declares its own `lang`. A page that did not would land in the wrong
+# hreflang cluster, which is worse than having none.
+defaults:
+  - scope: { path: "" }
+    values:
+      layout: default
+
+exclude:
+  - Gemfile
+  - Gemfile.lock
+  - vendor
