@@ -36,3 +36,8 @@ venv/
 docs/_site/
 docs/.jekyll-cache/
 docs/.jekyll-metadata
+
+# Dumped out of the game by Config.DumpRules. Derived from the game, like the
+# string dumps above: anyone with a copy of the game can make it again. The trainer
+# reads it; what the trainer PRODUCES (policy/weights.json) is ours and is committed.
+generated/rules.json

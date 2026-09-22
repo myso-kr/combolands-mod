@@ -27,6 +27,13 @@
     <Compile Include="../../src/Combolands.Mod/autoplay/Value.cs" Link="linked/Value.cs" />
     <Compile Include="../../src/Combolands.Mod/autoplay/Plan.cs" Link="linked/Plan.cs" />
     <Compile Include="../../src/Combolands.Mod/autoplay/Rules.cs" Link="linked/Rules.cs" />
+    <Compile Include="../../src/Combolands.Mod/JsonValue.cs" Link="linked/JsonValue.cs" />
+    <Compile Include="../../src/Combolands.Mod/autoplay/sim/Rules.cs" Link="linked/sim/Rules.cs" />
+    <Compile Include="../../src/Combolands.Mod/autoplay/sim/Map.cs" Link="linked/sim/Map.cs" />
+    <Compile Include="../../src/Combolands.Mod/autoplay/sim/Preview.cs" Link="linked/sim/Preview.cs" />
+    <Compile Include="../../src/Combolands.Mod/autoplay/sim/Evaluate.cs" Link="linked/sim/Evaluate.cs" />
+    <Compile Include="../../src/Combolands.Mod/autoplay/sim/Policy.cs" Link="linked/sim/Policy.cs" />
+    <Compile Include="../../src/Combolands.Mod/autoplay/sim/Milestone.cs" Link="linked/sim/Milestone.cs" />
   </ItemGroup>
 
   <ItemGroup>

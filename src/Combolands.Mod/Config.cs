@@ -16,6 +16,7 @@ namespace Combolands.Mod
         private static MelonPreferences_Entry<string> _fontFile;
         private static MelonPreferences_Entry<float> _fontScale;
         private static MelonPreferences_Entry<bool> _dumpStrings;
+        private static MelonPreferences_Entry<bool> _dumpRules;
 
         private static MelonPreferences_Entry<bool> _cheats;
         private static MelonPreferences_Entry<string> _widgetKey;
@@ -149,6 +150,9 @@ namespace Combolands.Mod
             _dumpStrings = _cat.CreateEntry("DumpStrings", false,
                 description: "Developer: write every LocalizedStringAsset to generated/strings.en.json on first scene.");
 
+            _dumpRules = _cat.CreateEntry("DumpRules", false,
+                description: "Developer: write the scoring rules to generated/rules.json once a run is going. That file is what lets the simulator and the trainer work with no game at all.");
+
             // Without this there is no UserData/MelonPreferences.cfg until the game
             // exits cleanly, so a player who wants to change the font size has
             // nothing to edit.
@@ -161,6 +165,7 @@ namespace Combolands.Mod
         internal static string FontFile { get { return _fontFile.Value; } }
         internal static float FontScale { get { return _fontScale.Value; } }
         internal static bool DumpStrings { get { return _dumpStrings.Value; } }
+        internal static bool DumpRules { get { return _dumpRules.Value; } }
 
         internal static bool Cheats { get { return _cheats.Value; } }
         internal static bool BlockAchievements { get { return _blockAchievements.Value; } }
@@ -279,6 +284,21 @@ namespace Combolands.Mod
         internal static string DataDir
         {
             get { return Path.Combine(GameDir, Path.Combine("UserData", "Combolands")); }
+        }
+
+        // Where the dumped rule set lands. Under the game folder rather than the
+        // repository, because the dump runs inside the game - copying it across is a
+        // deliberate step, and the file is gitignored at the other end.
+        internal static string RulesFile
+        {
+            get { return Path.Combine(DataDir, Path.Combine("generated", "rules.json")); }
+        }
+
+        // The fitted policy, which unlike the rule set IS committed: it is six
+        // numbers the trainer produced, not anything of the game's.
+        internal static string PolicyFile
+        {
+            get { return Path.Combine(DataDir, Path.Combine("policy", "weights.json")); }
         }
 
         internal static string LocaleFile(string lang)

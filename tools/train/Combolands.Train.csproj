@@ -1,0 +1,34 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    Fits the placement policy against simulated milestones. No game, no Unity, no
+    MelonLoader: it links the same simulator files the plugin runs and the tests pin,
+    so the thing being trained and the thing being played are one implementation.
+
+    It needs `generated/rules.json`, which is dumped out of a game once and is not in
+    this repository. What this produces - `locale/policy/weights.json`, six numbers -
+    is ours and is committed.
+  -->
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net8.0</TargetFramework>
+    <LangVersion>latest</LangVersion>
+    <Nullable>disable</Nullable>
+    <EnableDefaultCompileItems>false</EnableDefaultCompileItems>
+    <RootNamespace>Combolands.Train</RootNamespace>
+    <AssemblyName>train</AssemblyName>
+    <InvariantGlobalization>true</InvariantGlobalization>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Compile Include="**/*.cs" Exclude="bin/**;obj/**" />
+    <Compile Include="../../src/Combolands.Mod/JsonValue.cs" Link="linked/JsonValue.cs" />
+    <Compile Include="../../src/Combolands.Mod/autoplay/sim/Rules.cs" Link="linked/sim/Rules.cs" />
+    <Compile Include="../../src/Combolands.Mod/autoplay/sim/Map.cs" Link="linked/sim/Map.cs" />
+    <Compile Include="../../src/Combolands.Mod/autoplay/sim/Preview.cs" Link="linked/sim/Preview.cs" />
+    <Compile Include="../../src/Combolands.Mod/autoplay/sim/Evaluate.cs" Link="linked/sim/Evaluate.cs" />
+    <Compile Include="../../src/Combolands.Mod/autoplay/sim/Policy.cs" Link="linked/sim/Policy.cs" />
+    <Compile Include="../../src/Combolands.Mod/autoplay/sim/Milestone.cs" Link="linked/sim/Milestone.cs" />
+  </ItemGroup>
+
+</Project>

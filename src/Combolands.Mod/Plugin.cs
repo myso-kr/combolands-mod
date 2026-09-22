@@ -18,6 +18,7 @@ namespace Combolands.Mod
     {
         private static readonly HarmonyInstance Patcher = new HarmonyInstance("kr.myso.combolands");
         private bool _dumped;
+        private bool _dumpedRules;
 
         public override void OnInitializeMelon()
         {
@@ -86,13 +87,41 @@ namespace Combolands.Mod
             Supervisor.Stop();
             Supervisor.Forget();
 
-            if (_dumped || !Config.DumpStrings) return;
-            _dumped = true;
-            Log.Guard("dump", Dump.Run);
+            if (!_dumped && Config.DumpStrings)
+            {
+                _dumped = true;
+                Log.Guard("dump", I18n.Dump.Run);
+            }
+
         }
+
+        // The rule set needs a run in progress, because `BuildingBehaviours.Instance`
+        // is populated when one starts - so it cannot be done on a scene hook the way
+        // the string dump is. This is checked on update instead, at walking pace, and
+        // stops asking the moment it succeeds.
+        private void DumpRules()
+        {
+            if (_dumpedRules || !Config.DumpRules) return;
+            if (UnityEngine.Time.unscaledTime < _nextRulesTry) return;
+
+            _nextRulesTry = UnityEngine.Time.unscaledTime + 2f;
+            if (!Autoplay.Sim.Dump.Ready) return;
+
+            Log.Guard("dump.rules", () =>
+            {
+                var written = Autoplay.Sim.Dump.Write(Config.RulesFile);
+                if (written == null) return;
+
+                _dumpedRules = true;
+                Log.Info("sim", "wrote " + written);
+            });
+        }
+
+        private float _nextRulesTry;
 
         public override void OnUpdate()
         {
+            DumpRules();
             if (Config.Cheats) Log.Guard("cheat.input", Widget.Update);
 
             if (Config.Autoplay)
