@@ -1,0 +1,21 @@
+# Line endings are not cosmetic here.
+#
+# strings.json is read by the plugin and diffed by translators; a checkout that
+# rewrote it to CRLF would show every line as changed the first time someone on
+# Windows touched it. The TTF must never be touched at all: a font whose bytes
+# changed is a font whose sha256 no longer matches THIRD-PARTY.md.
+* text=auto eol=lf
+
+*.cs      text eol=lf
+*.csproj  text eol=lf
+*.json    text eol=lf
+*.py      text eol=lf
+*.md      text eol=lf
+*.yml     text eol=lf
+*.ps1     text eol=lf
+
+*.ttf     binary
+*.otf     binary
+*.png     binary
+*.ico     binary
+*.dll     binary
