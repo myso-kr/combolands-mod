@@ -203,7 +203,8 @@ autoplay dead, which is the failure worth having.
 | S1 | milestone summary | `UI.MilestoneScreen.MilestoneScreen.WaitingForClick` · `ProcessClick()` | **autoplay stops at every milestone** | `autoplay/Screens.cs` |
 | S2 | modal dialogs | `Shared.UI.MessageDialog.IsShown` · `Close()` | autoplay stops at the first dialog | `autoplay/Screens.cs` |
 | S3 | start-of-milestone pack | `UI.StartOfMilestonePack` (click handler) | autoplay stops after every milestone | `autoplay/Screens.cs` |
-| S4 | council request | `UI.Quests.CouncilQuestOptionButton` (click) · `QuestSelectionPanel.Confirm()` | same | `autoplay/Screens.cs` |
+| S4 | choosing a council request | `UI.Quests.CouncilQuestOptionButton.Quest` · `QuestSelectionPanel.SelectQuest()` · `_selected` · `Confirm()` · `PressRerollButton()` | same | `autoplay/Quests.cs` |
+| S7 | claiming a council reward | `UI.Quests.CouncilQuestTextArea._currentQuests` · `_textBlock` · `PressHeaderButton()` · `PressClaimRewardButton()` · `PressSkipRewardButton()` · `QuestCompletedAnim` (active) | **the run ends at the next milestone** | `autoplay/Quests.cs` |
 | S5 | pack contents | `UI.PackSelectionPanel._options` · `UI.Shop.ShopItem` (click) | autoplay stops on an open pack | `autoplay/Screens.cs` |
 | S6 | leaving the shop | `UI.ShopPanel.Exterior` (a FIELD) · `ShopExterior.IsShown` · `_currentSkipReward` · `SkipShop()` | autoplay stops at the shop | `autoplay/Screens.cs` |
 
@@ -212,6 +213,35 @@ S6 carries a precondition the game does not check for itself. `SkipShop` derefer
 cleared later by a coroutine — so calling it twice throws, and once it has thrown the
 loop never gets past `Screens.Handle` again. That is why the mod reads the private
 field before calling, and why any successful screen action is followed by a settle.
+
+S7 is the most expensive anchor in this table to lose, and the reason is in
+`MilestoneManager.CompleteCurrentMilestoneRoutine`: with a reward outstanding it
+switches to `ClaimingQuestReward`, which disables all input, and then spins on
+`while (IsQuestRewardWaitingToBeClaimed)` with no timeout and no escape. An unclaimed
+reward does not cost a reward - it ends the run where it stands.
+
+Three preconditions sit on that one press, and the mod checks each:
+
+- the claim button lives inside the request list, so a **collapsed panel** has to be
+  opened first (`PressHeaderButton`)
+- `QuestCompletedAnim` owns the button for about five seconds after a request
+  completes, then flies it into the panel - pressing through the animation claims into
+  a screen that is moving
+- `QuestReward.ProcessReward` **refuses when the consumable shelf is full**, prints
+  the refusal and returns false. That is the pack livelock in another costume, so the
+  mod falls through instead and lets `Items.UseOne` free a slot. After eight tries it
+  presses the game's own skip button: throwing a reward away is a loss, a milestone
+  that never completes is the run.
+
+Choosing has one trap of its own. `QuestSelectionPanel.SelectQuest` **toggles**, and
+`Confirm()` dereferences `_selected` with no null check - so selecting the same option
+twice and confirming is a null reference. The mod reads `_selected` back before
+confirming.
+
+One anchor here is an *absence*: nothing in the game calls
+`ProceedQuestsOfTypeByAmount` for `CouncilQuestType.FinishEarly`. The type is in the
+enum with no progress hook anywhere, so a request of that type cannot be completed by
+anyone, and `Quests.Avoid` lists it alongside the ones autoplay merely declines to do.
 
 ## The hazard that is not in the table
 

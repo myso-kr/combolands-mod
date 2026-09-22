@@ -78,6 +78,7 @@ autoplay/Overlay.cs    drawing the shortlist. Reads, never writes
 autoplay/Pace.cs       how much hurry the milestone is in. Pure
 autoplay/Screens.cs    the screens a run stops on, and how to get past them
 autoplay/Shop.cs       whether to go in, what to buy, when to leave
+autoplay/Quests.cs     which council request to take, and collecting its reward
 autoplay/Items.cs      spending what the run has picked up
 autoplay/Offers.cs     describing an offered building, with no instance to ask
 autoplay/Supervisor.cs the loop: WHEN to act, never what

@@ -1,4 +1,4 @@
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 
 namespace Combolands.Mod.Autoplay
 {
@@ -99,6 +99,12 @@ namespace Combolands.Mod.Autoplay
         // How much hurry the run is in. Defaults to "unknown", which behaves as
         // "play normally" - the tests and the scouting path both rely on that.
         public Pace Pace = Pace.Unknown;
+
+        // The GamePieceCategory an active "score N points with X" council request is
+        // asking for, or -1. It is on the board rather than in Value because it is a
+        // fact about the run, like the pace, and the valuation should stay a function
+        // of its inputs.
+        public int QuestCategory = -1;
 
         // What this candidate would earn from `other` being nearby. A tag match wins
         // over a category match rather than adding to it: the game's behaviours pay

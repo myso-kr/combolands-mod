@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections;
 using System.Reflection;
 using UnityEngine;
@@ -62,6 +62,7 @@ namespace Combolands.Mod.Autoplay
 
         private static bool Act()
         {
+            if (ClaimQuestReward()) return true;
             if (DismissMilestone()) return true;
             if (CloseDialog()) return true;
             if (TakeStartOfMilestonePack()) return true;
@@ -89,20 +90,22 @@ namespace Combolands.Mod.Autoplay
 
         // --- the council request --------------------------------------------------
 
-        // Select then confirm, which is what the panel's own two steps are. Skipping
-        // the confirm would leave the screen up with a highlighted option, which is
-        // the same stall in a more confusing shape.
+        // Which request to take is a real decision - autoplay cannot do all of them -
+        // so it lives in Quests.cs with the rest of the council handling.
         private static bool ChooseQuest()
         {
-            var option = FirstActive("UI.Quests.CouncilQuestOptionButton");
-            if (option == null) return false;
-            if (!LeftClick(option)) return false;
+            if (!Quests.Choose()) return false;
+            Last = Quests.Last;
+            return true;
+        }
 
-            var panel = Singletons.Get("UI.Quests.QuestSelectionPanel");
-            if (panel != null) Call(panel, "Confirm");
-
-            Last = "accepted a council request";
-            Log.Info("autoplay", Last);
+        // A finished request puts its reward behind a button and disables input until
+        // it is pressed, so this goes first: nothing else on this list can proceed
+        // while it is up.
+        private static bool ClaimQuestReward()
+        {
+            if (!Quests.ClaimReward()) return false;
+            Last = Quests.Last;
             return true;
         }
 

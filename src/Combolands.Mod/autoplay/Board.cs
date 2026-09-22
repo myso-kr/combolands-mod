@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Reflection;
@@ -157,6 +157,7 @@ namespace Combolands.Mod.Autoplay
             board.PlazaTag = Tag("Plaza");
             board.CorruptedObeliskTag = Tag("CorruptedObelisk");
             board.Pace = ReadPace();
+            board.QuestCategory = Quests.TargetCategory();
             return board;
         }
 

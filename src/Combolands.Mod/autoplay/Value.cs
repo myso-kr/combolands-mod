@@ -1,4 +1,4 @@
-namespace Combolands.Mod.Autoplay
+﻿namespace Combolands.Mod.Autoplay
 {
     // What one placement on one tile is worth.
     //
@@ -49,6 +49,16 @@ namespace Combolands.Mod.Autoplay
         // to build the rest of the cluster".
         internal const float WeightRoom = 0.05f;
 
+        // Being the category the council asked for.
+        //
+        // This is flat, and flat is the point: every tile is scored for the SAME
+        // candidate, so a constant cannot reorder tiles. What it reorders is the
+        // choice between candidates - which of three offered cards to take, which
+        // pack option to open, what to buy - which is exactly where a request is won
+        // or lost. Sized at about two shared categories: enough to break a tie
+        // between comparable buildings, not enough to take a bad one.
+        internal const float WeightQuestCategory = 1.2f;
+
         internal struct Breakdown
         {
             public int Covers;
@@ -59,6 +69,7 @@ namespace Combolands.Mod.Autoplay
             public int TargetScore;     // raw, as the game declares it
             public float TargetHits;    // normalised - "how many useful targets"
             public int Room;
+            public bool ServesQuest;
             public float Total;
         }
 
@@ -107,6 +118,7 @@ namespace Combolands.Mod.Autoplay
                 result.TargetHits = (float)result.TargetScore / board.MaxTargetScore;
 
             result.Room = BuildableWithin(board, x, y, RoomRadius(candidate));
+            result.ServesQuest = ServesQuest(board, candidate);
 
             // The milestone decides which half of this matters. With weeks to spare,
             // a tile that sets up future synergies beats one that pays now; with two
@@ -121,8 +133,17 @@ namespace Combolands.Mod.Autoplay
                          + WeightAdjacent * result.Adjacent
                          + WeightShared * result.Shared
                          + WeightSameTag * result.SameTag
-                         + WeightRoom * result.Room * later;
+                         + WeightRoom * result.Room * later
+                         + (result.ServesQuest ? WeightQuestCategory : 0f);
             return result;
+        }
+
+        private static bool ServesQuest(Snapshot board, Piece candidate)
+        {
+            if (board.QuestCategory < 0 || candidate.Categories == null) return false;
+            for (int i = 0; i < candidate.Categories.Length; i++)
+                if (candidate.Categories[i] == board.QuestCategory) return true;
+            return false;
         }
 
         // Eight-neighbourhood. The game calls this "adjacent" and includes diagonals -

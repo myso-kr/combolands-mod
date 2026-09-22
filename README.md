@@ -104,6 +104,18 @@ to spare it builds the engine, and with two weeks left it takes the points. That
 a policy rather than an optimum - trigger cascades cannot be evaluated without
 committing to them - but which way to lean is computable, and it computes it.
 
+It takes a council request rather than accepting whichever was listed first, and
+the difference is not cosmetic: about a third of the offered requests ask for
+something autoplay never does - aiming a spell, dismissing, removing - and one of
+them, `FinishEarly`, has no progress hook anywhere in the game and so cannot be
+completed by anybody. It prefers the ones its own play advances, takes the free
+first reroll when all three are hopeless, and steers its choice of buildings toward
+the category a "score with X" request is asking for.
+
+It always collects the reward. An unclaimed one is not a missed reward: the
+end-of-milestone routine disables input and waits on it forever, so a run that does
+not claim is a run that ends there.
+
 It does **not** aim paints, stat mods or potions. Those apply through a code path
 that begins `if (InputKeys.LMBDown)`, and synthesising that would mean patching the
 left mouse button globally and firing every other click handler in the game. It
