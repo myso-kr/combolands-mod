@@ -388,6 +388,42 @@ Stage 3  Autoplay — unattended
          milestones. State-transition timing is where this gets hard.
 ```
 
+### What stage 1 turned out to be
+
+Six files, and the split is the design rather than tidiness:
+
+```
+Snapshot.cs   a board as plain data. No Unity types, no game types
+Board.cs      the only file that touches MapController / BuildingController
+Value.cs      what one placement on one tile is worth. Pure
+Plan.cs       the ranked shortlist. Pure
+State.cs      when it is meaningful to say anything
+Overlay.cs    draws the shortlist. Reads, never writes
+```
+
+`Snapshot` carrying no Unity or game types is what lets `tests/` link `Value.cs` and
+`Plan.cs` as **source** and run them on a CI runner where neither Unity nor the game
+exists. A board written by hand in a test is indistinguishable from a real one. That
+is also why tags and categories cross the seam as `int` — naming those enums would
+mean referencing `Assembly-CSharp`, and the valuation only needs to know whether two
+pieces share a category, never what it is called.
+
+### The range shape had to be exact
+
+`Grid.GetFilledCircle` is not a square and not quite a circle:
+
+```csharp
+dx*dx + dy*dy < r*r + r
+```
+
+Range 1 covers the four orthogonal neighbours and **not** the diagonals; range 2
+covers all eight but not the corners at (±2, ±2). A Chebyshev square — the obvious
+approximation — is wrong for exactly the cases a player checks first. It is
+reproduced rather than approximated, and pinned by tests.
+
+Crane and Stable extend a building's range through other buildings. Stage 1 ignores
+that and says so here rather than in a comment nobody reads.
+
 ### The valuation problem, stated honestly
 
 Combolands scores through cascading triggers (`GameState/TriggerController.cs`,
@@ -410,6 +446,25 @@ Interaction/InteractionController MouseCoords CurrentlyTargeting
 Re-implementing `PointsScorer` as a pure function would be exact and would break on
 every game update. Stage 1 exists to find out whether the cheap heuristic is already
 good enough to follow, by putting it on screen where a human can disagree with it.
+
+What it actually counts, with weights in one named block in `Value.cs`:
+
+| Term | Why |
+|---|---|
+| pieces this one would reach | most buildings score "for each X in range" |
+| pieces that would reach it | the same relation, the other way round — and not the same thing |
+| pieces touching it | adjacency effects are the game's other main verb |
+| pairs sharing a category | only where the two can actually interact |
+| buildable neighbours lost | **negative**. Without it everything piles into one corner, because the densest tile is always the one beside what is already dense |
+
+A building that says "for each `[Husbandry]` in range" is invisible to this. But a
+tile sitting in a cluster it shares categories with is where such a building wants
+to be anyway, which is the bet stage 1 is testing.
+
+Legality is not guessed at. The shortlist is ranked wide over cheap checks, then the
+top few are put to the game's own `CanBuildBuildingAt` before anything is drawn —
+thirty reflection calls rather than thousands, and no highlight the game would
+refuse.
 
 `CheatsHandler.SpeedUpScoring` is already there for skipping scoring animation
 during unattended runs.
@@ -444,9 +499,11 @@ M3  Cheat widget                                      DONE 2026-09-23
     [x] panel clicks no longer fall through to the map
     [x] DPI scaling - IMGUI is unreadable above 1080p untouched
 
-M4  Play helper (stage 1)                             week 4
-    Board reader · valuation · overlay
-    Unit tests over fixture boards, no game required
+M4  Play helper (stage 1)                             DONE 2026-09-23
+    [x] Snapshot / Board / Value / Plan / State / Overlay
+    [x] the game's own range shape reproduced exactly
+    [x] 14 unit tests over hand-written boards, no game, no Unity
+    [ ] judged by eye over a real run - the only test that matters here
 
 M5  Ship                                              week 5
     release.yml · README · docs site · NOTICE/THIRD-PARTY

@@ -1,0 +1,35 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    Runs WITHOUT the game. Snapshot.cs, Value.cs and Plan.cs are linked in as source
+    rather than referenced through the plugin assembly, because the plugin targets
+    net472 and binds to Unity and MelonLoader - neither of which exists on a CI
+    runner. Those three files deliberately contain no Unity types, which is what
+    makes linking them possible and is the reason Board.cs is a separate file.
+  -->
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <IsPackable>false</IsPackable>
+    <LangVersion>latest</LangVersion>
+    <Nullable>disable</Nullable>
+    <EnableDefaultCompileItems>false</EnableDefaultCompileItems>
+    <RootNamespace>Combolands.Mod.Tests</RootNamespace>
+    <!-- Piece.Tag is written by Board.cs, which is not linked here because it binds
+         to Unity. The field is not dead; it is just assigned outside this project. -->
+    <NoWarn>CS0649</NoWarn>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Compile Include="**/*.cs" Exclude="bin/**;obj/**" />
+    <Compile Include="../../src/Combolands.Mod/autoplay/Snapshot.cs" Link="linked/Snapshot.cs" />
+    <Compile Include="../../src/Combolands.Mod/autoplay/Value.cs" Link="linked/Value.cs" />
+    <Compile Include="../../src/Combolands.Mod/autoplay/Plan.cs" Link="linked/Plan.cs" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.11.1" />
+    <PackageReference Include="xunit" Version="2.9.2" />
+    <PackageReference Include="xunit.runner.visualstudio" Version="2.8.2" />
+  </ItemGroup>
+
+</Project>

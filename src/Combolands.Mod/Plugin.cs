@@ -3,10 +3,11 @@
 using HarmonyInstance = HarmonyLib.Harmony;
 using MelonLoader;
 using Combolands.Mod;
+using Combolands.Mod.Autoplay;
 using Combolands.Mod.Cheat;
 using Combolands.Mod.I18n;
 
-[assembly: MelonInfo(typeof(Plugin), "Combolands Mod", "0.2.0", "myso-kr",
+[assembly: MelonInfo(typeof(Plugin), "Combolands Mod", "0.3.0", "myso-kr",
     "https://github.com/myso-kr/combolands-mod")]
 [assembly: MelonGame("Crux Games", "Combolands")]
 
@@ -54,6 +55,9 @@ namespace Combolands.Mod
             {
                 Log.Info("plugin", "cheats disabled by config");
             }
+
+            if (Config.PlayHelper)
+                Log.Info("helper", "placement overlay ready on " + Config.HelperKey);
         }
 
         public override void OnSceneWasInitialized(int buildIndex, string sceneName)
@@ -67,6 +71,7 @@ namespace Combolands.Mod
             // on across one, a building could end up where the game will not re-derive
             // it on load - and the save is written from the map.
             Build.Reset();
+            Overlay.Clear();
 
             if (_dumped || !Config.DumpStrings) return;
             _dumped = true;
@@ -76,10 +81,16 @@ namespace Combolands.Mod
         public override void OnUpdate()
         {
             if (Config.Cheats) Log.Guard("cheat.input", Widget.Update);
+
+            if (!Config.PlayHelper) return;
+            if (UnityEngine.Input.GetKeyDown(Config.HelperKey)) Log.Guard("helper.toggle", Overlay.Toggle);
+            Log.Guard("helper.refresh", Overlay.Refresh);
         }
 
         public override void OnGUI()
         {
+            // The overlay draws first so the cheat panel sits on top of it.
+            if (Config.PlayHelper) Log.Guard("helper.draw", Overlay.Draw);
             if (Config.Cheats) Log.Guard("cheat.draw", Widget.Draw);
         }
     }

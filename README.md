@@ -3,10 +3,11 @@
 Korean language patch, cheat widget, and autoplay for the Steam roguelike citybuilder
 *Combolands: Roguelike Citybuilder* (Crux Games, AppID 4075620).
 
-> **Status: language patch and cheat widget work.** Every string the game has is
-> translated and renders in the retail build, and the cheat panel is on F8.
-> Autoplay is not written yet. No game file is modified — the loader and the mod are
-> added beside them and uninstall by deletion.
+> **Status: language patch, cheat widget and placement helper work.** Every string
+> the game has is translated and renders in the retail build; the cheat panel is on
+> F8 and the helper overlay on F9. Acting on the helper automatically — stages 2 and
+> 3 — is not written yet. No game file is modified: the loader and the mod are added
+> beside them and uninstall by deletion.
 
 | Document | What it settles |
 |---|---|
@@ -53,6 +54,24 @@ The game also still has Crux's own developer cheats, untouched by this mod: hold
 `RightShift`+`C`+`L` to arm them, then `RightShift` plus `G`, `B`, `W`, `E` and the
 rest. Those do **not** trip the achievement gate — the mod cannot see them.
 
+## Play helper
+
+**F9.** While you are holding a building, it highlights the five tiles it thinks are
+best and numbers the top three. It **reads game state and writes nothing** — the
+worst it can do is be wrong and be ignored, which is why it ships before the
+valuation is any good.
+
+It is a heuristic, not a simulation, and the difference is not a hedge. Combolands
+scores through cascading triggers that mutate live state as they run, so there is no
+way to ask "what would this placement score" without committing to it. What the
+helper counts instead is the shape the game rewards: pieces this one would reach,
+pieces that would reach it, pieces touching it, how often those pairs share a
+category, and — negatively — how much open ground the placement costs.
+
+Tiles are ranked over cheap checks, then the top few are put to the game's own
+placement rule before anything is drawn, so nothing is ever highlighted that the
+game would refuse.
+
 ## Configuration
 
 `UserData/MelonPreferences.cfg`, written on first run:
@@ -69,14 +88,23 @@ rest. Those do **not** trip the achievement gate — the mod cannot see them.
 | `WidgetKey` | `F8` | any `UnityEngine.KeyCode` name |
 | `WidgetScale` | `0` | panel scale. 0 derives one from the window height — IMGUI has no DPI awareness |
 | `BlockAchievements` | `true` | stop submitting achievements once any cheat is used |
+| `PlayHelper` | `true` | |
+| `PlayHelperKey` | `F9` | any `UnityEngine.KeyCode` name |
+| `PlayHelperShortlist` | `5` | how many tiles to highlight |
 
 ## Building
 
 ```
 dotnet build src/Combolands.Mod -c Release
+dotnet test tests/Combolands.Mod.Tests
 python tools/lint-locale.py locale/ko/strings.json --english generated/strings.en.json
 python tools/status.py
 ```
+
+The tests run **without the game and without Unity**. `Snapshot.cs`, `Value.cs` and
+`Plan.cs` carry no Unity types, so the test project links them as source — which is
+the reason `Board.cs`, the one file that touches the game's controllers, is separate
+from the valuation at all.
 
 `GameDir` defaults to the Steam path and is overridable:
 `-p:GameDir="D:\SteamLibrary\steamapps\common\Combolands"`.

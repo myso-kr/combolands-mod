@@ -1,5 +1,6 @@
 using System;
 using System.Reflection;
+using Combolands.Mod.Autoplay;
 using HarmonyLib;
 using UnityEngine;
 using HarmonyInstance = HarmonyLib.Harmony;
@@ -93,6 +94,7 @@ namespace Combolands.Mod.Cheat
             Economy();
             RunControls();
             Building();
+            Helper();
             Pace();
             PermanentUnlocks();
 
@@ -157,6 +159,21 @@ namespace Combolands.Mod.Cheat
             Build.IgnoreRestrictions = GUILayout.Toggle(
                 Build.IgnoreRestrictions, " ignore all placement restrictions");
             if (GUILayout.Button("next building anywhere")) Build.NextBuildingAnywhere();
+        }
+
+        // Reads the overlay's own summary rather than recomputing anything. The
+        // helper decides; the panel reports.
+        private static void Helper()
+        {
+            if (!Config.PlayHelper) return;
+
+            GUILayout.Space(6f);
+            GUILayout.Label("Play helper  (" + Config.HelperKey + ")");
+
+            var on = GUILayout.Toggle(Overlay.Enabled, " highlight the best placements");
+            if (on != Overlay.Enabled) Overlay.Toggle();
+            Note(Overlay.Summary());
+            Note("Suggestions only. Nothing here is written to the game.");
         }
 
         private static void Pace()

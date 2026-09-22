@@ -22,6 +22,10 @@ namespace Combolands.Mod
         private static MelonPreferences_Entry<bool> _blockAchievements;
         private static MelonPreferences_Entry<float> _widgetScale;
 
+        private static MelonPreferences_Entry<bool> _helper;
+        private static MelonPreferences_Entry<string> _helperKey;
+        private static MelonPreferences_Entry<int> _helperShortlist;
+
         internal static void Load()
         {
             _cat = MelonPreferences.CreateCategory("Combolands", "Combolands Mod");
@@ -64,6 +68,13 @@ namespace Combolands.Mod
             _widgetScale = _cat.CreateEntry("WidgetScale", 0f,
                 description: "Cheat widget scale. 0 picks one from the window height.");
 
+            _helper = _cat.CreateEntry("PlayHelper", true,
+                description: "Enable the placement helper overlay.");
+            _helperKey = _cat.CreateEntry("PlayHelperKey", "F9",
+                description: "Key that toggles the placement overlay. Any UnityEngine.KeyCode name.");
+            _helperShortlist = _cat.CreateEntry("PlayHelperShortlist", 5,
+                description: "How many tiles the overlay highlights.");
+
             _dumpStrings = _cat.CreateEntry("DumpStrings", false,
                 description: "Developer: write every LocalizedStringAsset to generated/strings.en.json on first scene.");
 
@@ -82,6 +93,29 @@ namespace Combolands.Mod
 
         internal static bool Cheats { get { return _cheats.Value; } }
         internal static bool BlockAchievements { get { return _blockAchievements.Value; } }
+
+        internal static bool PlayHelper { get { return _helper.Value; } }
+        internal static int HelperShortlist { get { return Mathf.Clamp(_helperShortlist.Value, 1, 20); } }
+
+        private static KeyCode _parsedHelperKey = KeyCode.None;
+
+        internal static KeyCode HelperKey
+        {
+            get
+            {
+                if (_parsedHelperKey != KeyCode.None) return _parsedHelperKey;
+                try
+                {
+                    _parsedHelperKey = (KeyCode)System.Enum.Parse(typeof(KeyCode), _helperKey.Value, true);
+                }
+                catch
+                {
+                    Log.Warn("config", "PlayHelperKey '" + _helperKey.Value + "' is not a KeyCode; using F9");
+                    _parsedHelperKey = KeyCode.F9;
+                }
+                return _parsedHelperKey;
+            }
+        }
 
         internal static float WidgetScale
         {

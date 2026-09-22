@@ -142,7 +142,18 @@ bypass has to be rebuilt against the method body.
 | P4 | placed pieces | `BuildingController.Buildings : List<Building>` | valuation quality | `autoplay/Board.cs` |
 | P5 | state gate | `Interaction.InteractionController.CurrentInteractionState`, `ChangeToState(InteractionState, params object[])`, `MouseCoords`, `CurrentlyTargeting` | stages 2–3 | `autoplay/State.cs` |
 | P6 | the 34 states | `Interaction.InteractionStates.*` — `PlacingBuilding`, `Shopping`, `SelectingQuest`, `OpeningPack`, `CompletingMilestone`, … | stage 3 | `autoplay/State.cs` |
-| P7 | scoring speed | `CheatsHandler.SpeedUpScoring : bool` (public field) | unattended runs take real time | `autoplay/Supervisor.cs` |
+| P7 | scoring speed | `CheatsHandler.SpeedUpScoring : bool` (public field) | unattended runs take real time | `cheat/Run.cs` |
+| P8 | the held piece | `Interaction.InteractionStates.PlacingBuilding._currentlyPlacing` (private field) | **the helper never has anything to suggest** | `autoplay/State.cs` |
+| P9 | tiles | `Environment.Tile` — `IsEmpty`, `CantBuildOn` | the helper suggests occupied tiles | `autoplay/Board.cs` |
+| P10 | piece shape | `Entities.Building` — `X`, `Y`, `Range`, `Tag`, `Categories` | valuation quality | `autoplay/Board.cs` |
+| P11 | range shape | ``Library.Grid.GridDrawingAlgorithms.GetFilledCircle`` — `dx*dx + dy*dy < r*r + r` | every highlight is subtly wrong | `autoplay/Snapshot.cs` |
+
+P11 is the one anchor this mod **copies rather than calls**. Asking the game whether
+each of 1,188 tiles is in range of each building would be tens of thousands of
+reflection calls a frame, so the shape is reproduced in `Piece.Covers` and pinned by
+tests. That makes it the one place where the game can change without anything
+failing — the helper would simply start drawing confidently wrong highlights. Re-read
+`GetFilledCircle` after a game update; nothing else will tell you.
 
 P1 and P4 are read-only and public. P5 and P6 are where stage 3's difficulty lives —
 not because the members are fragile, but because *when* it is safe to call
