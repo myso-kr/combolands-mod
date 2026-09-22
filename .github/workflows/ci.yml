@@ -18,8 +18,8 @@ jobs:
     name: Tests
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-dotnet@v4
+      - uses: actions/checkout@v7
+      - uses: actions/setup-dotnet@v6
         with: { dotnet-version: '8.0.x' }
 
       # The reasoning, on hand-written fixtures. Snapshot, Value, Plan, Rules and Pace
@@ -40,8 +40,8 @@ jobs:
     name: The repository agrees with itself
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v4
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
         with: { python-version: '3.12' }
 
       # MelonLoader prints MelonInfo into every log, so that string is the version a
