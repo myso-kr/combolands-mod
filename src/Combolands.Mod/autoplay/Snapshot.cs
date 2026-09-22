@@ -96,6 +96,10 @@ namespace Combolands.Mod.Autoplay
         // are simply doing their best.
         public int MaxTargetScore;
 
+        // How much hurry the run is in. Defaults to "unknown", which behaves as
+        // "play normally" - the tests and the scouting path both rely on that.
+        public Pace Pace = Pace.Unknown;
+
         // What this candidate would earn from `other` being nearby. A tag match wins
         // over a category match rather than adding to it: the game's behaviours pay
         // for a target once.

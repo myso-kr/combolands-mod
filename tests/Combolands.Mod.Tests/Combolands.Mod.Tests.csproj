@@ -22,6 +22,7 @@
   <ItemGroup>
     <Compile Include="**/*.cs" Exclude="bin/**;obj/**" />
     <Compile Include="../../src/Combolands.Mod/Reflect.cs" Link="linked/Reflect.cs" />
+    <Compile Include="../../src/Combolands.Mod/autoplay/Pace.cs" Link="linked/Pace.cs" />
     <Compile Include="../../src/Combolands.Mod/autoplay/Snapshot.cs" Link="linked/Snapshot.cs" />
     <Compile Include="../../src/Combolands.Mod/autoplay/Value.cs" Link="linked/Value.cs" />
     <Compile Include="../../src/Combolands.Mod/autoplay/Plan.cs" Link="linked/Plan.cs" />

@@ -43,6 +43,7 @@ namespace Combolands.Mod.Autoplay
             get
             {
                 var state = (Running ? "running - " : "stopped - ") + _last;
+                if (_pace.Known) state += "   [" + _pace + "]";
                 if (Log.HasFailed("autoplay.tick"))
                     state += string.Format("   [{0} error(s), see MelonLoader/Latest.log]",
                         Log.FailureCount("autoplay.tick"));
@@ -104,9 +105,17 @@ namespace Combolands.Mod.Autoplay
         {
             if (Screens.Handle()) { _last = Screens.Last; return true; }
 
+            // A targeting effect nobody is driving blocks everything behind it.
+            if (Items.EscapeTargeting()) { _last = Items.Last; return true; }
+
             var piece = State.PieceBeingPlaced();
 
             if (piece != null) return PlaceHeld(piece);
+
+            // Spending a blueprint puts one in hand, so it is tried before drawing a
+            // new card - a shelf that stays full stops the run taking anything else.
+            if (Items.UseOne(_pace)) { _last = Items.Last; return true; }
+
             if (Config.AutoplayPicks) return PickAnOffer();
 
             _last = "nothing to do here";
@@ -134,6 +143,7 @@ namespace Combolands.Mod.Autoplay
         private static readonly HashSet<long> Refused = new HashSet<long>();
         private static readonly HashSet<int> Hopeless = new HashSet<int>();
         private static object _refusedFor;
+        private static Pace _pace = Pace.Unknown;
 
         private static long Key(int x, int y) { return ((long)x << 32) ^ (uint)y; }
 
@@ -155,6 +165,7 @@ namespace Combolands.Mod.Autoplay
 
             var board = Board.Read(piece, null);
             if (board == null) { _last = "cannot read the board"; return false; }
+            _pace = board.Pace;
 
             // Separation is for a human choosing between options. A machine wants the
             // single best tile, so it is asked for one with none.

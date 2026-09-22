@@ -108,13 +108,20 @@ namespace Combolands.Mod.Autoplay
 
             result.Room = BuildableWithin(board, x, y, RoomRadius(candidate));
 
-            result.Total = WeightTargetPoints * result.TargetScore
-                         + WeightCovers * result.Covers
-                         + WeightCoveredBy * result.CoveredBy
+            // The milestone decides which half of this matters. With weeks to spare,
+            // a tile that sets up future synergies beats one that pays now; with two
+            // weeks left and a target to hit, an engine that pays off in four is
+            // worth nothing. Pace supplies the dial - see Pace.cs.
+            var now = board.Pace.ScoreNowWeight;
+            var later = board.Pace.FutureWeight;
+
+            result.Total = WeightTargetPoints * result.TargetScore * now
+                         + WeightCovers * result.Covers * later
+                         + WeightCoveredBy * result.CoveredBy * later
                          + WeightAdjacent * result.Adjacent
                          + WeightShared * result.Shared
                          + WeightSameTag * result.SameTag
-                         + WeightRoom * result.Room;
+                         + WeightRoom * result.Room * later;
             return result;
         }
 

@@ -35,6 +35,10 @@ namespace Combolands.Mod
         private static MelonPreferences_Entry<int> _autoplayDelay;
         private static MelonPreferences_Entry<bool> _autoplayPicks;
         private static MelonPreferences_Entry<bool> _autoplayBlocksAchievements;
+        private static MelonPreferences_Entry<int> _autoplayUseItems;
+        private static MelonPreferences_Entry<int> _autoplayShopMinGold;
+        private static MelonPreferences_Entry<int> _autoplayShopReserve;
+        private static MelonPreferences_Entry<int> _autoplayShopMinRarity;
         private static MelonPreferences_Entry<int> _helperOfferPicks;
 
         internal static void Load()
@@ -126,6 +130,22 @@ namespace Combolands.Mod
             _autoplayBlocksAchievements = _cat.CreateEntry("AutoplayBlocksAchievements", false,
                 description: "Treat using autoplay like using a cheat, and stop submitting achievements.");
 
+            // 0 never, 1 when the shelf is full or the milestone is tight, 2 always.
+            // Only blueprints are used either way - see autoplay/Items.cs for why the
+            // targeting consumables are left alone.
+            _autoplayUseItems = _cat.CreateEntry("AutoplayUseItems", 1,
+                description: "When autoplay spends blueprint consumables. 0 never, 1 when full or behind, 2 always.");
+
+            // Skipping the shop is not the lazy option - the game pays a reward for
+            // it - so with an empty purse the reward is strictly better than a look
+            // around.
+            _autoplayShopMinGold = _cat.CreateEntry("AutoplayShopMinGold", 25,
+                description: "Gold needed before autoplay goes into the shop rather than taking the skip reward.");
+            _autoplayShopReserve = _cat.CreateEntry("AutoplayShopReserve", 0,
+                description: "Gold autoplay will not spend in the shop.");
+            _autoplayShopMinRarity = _cat.CreateEntry("AutoplayShopMinRarity", 2,
+                description: "Lowest rarity worth buying. 1 Common, 2 Uncommon, 3 Rare, 4 Masterwork, 5 Legendary.");
+
             _dumpStrings = _cat.CreateEntry("DumpStrings", false,
                 description: "Developer: write every LocalizedStringAsset to generated/strings.en.json on first scene.");
 
@@ -156,6 +176,10 @@ namespace Combolands.Mod
         internal static int AutoplayDelay { get { return Mathf.Clamp(_autoplayDelay.Value, 2, 600); } }
         internal static bool AutoplayPicks { get { return _autoplayPicks.Value; } }
         internal static bool AutoplayBlocksAchievements { get { return _autoplayBlocksAchievements.Value; } }
+        internal static int AutoplayUseItems { get { return Mathf.Clamp(_autoplayUseItems.Value, 0, 2); } }
+        internal static int AutoplayShopMinGold { get { return Mathf.Max(0, _autoplayShopMinGold.Value); } }
+        internal static int AutoplayShopReserve { get { return Mathf.Max(0, _autoplayShopReserve.Value); } }
+        internal static int AutoplayShopMinRarity { get { return Mathf.Clamp(_autoplayShopMinRarity.Value, 1, 5); } }
 
         private static KeyCode _parsedAutoplayKey = KeyCode.None;
         private static KeyCode _parsedAutoplayStepKey = KeyCode.None;

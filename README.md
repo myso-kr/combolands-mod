@@ -95,8 +95,20 @@ game's own check reads a cache that cannot answer about thirty tiles in one fram
 ## Autoplay
 
 **F11** runs it, **F10** takes one step. It picks which offered building to place and
-where, and plays the **placement phase only** - shops, packs, quests and milestones
-are still yours.
+where, gets past the screens between milestones, spends blueprint consumables, and
+decides whether the shop is worth entering.
+
+How it places depends on the milestone. "Reach this score within these weeks" makes
+one of score and time scarce, and which one changes what a good tile is: with weeks
+to spare it builds the engine, and with two weeks left it takes the points. That is
+a policy rather than an optimum - trigger cascades cannot be evaluated without
+committing to them - but which way to lean is computable, and it computes it.
+
+It does **not** aim paints, stat mods or potions. Those apply through a code path
+that begins `if (InputKeys.LMBDown)`, and synthesising that would mean patching the
+left mouse button globally and firing every other click handler in the game. It
+will not start what it cannot finish, though it will back out of such a state
+rather than sit in one.
 
 It performs the player's own actions through the player's own methods, with
 coordinates instead of a mouse, so the game's state machine ends up exactly where it
@@ -143,6 +155,10 @@ earned is a different question, and `AutoplayBlocksAchievements` is there for it
 | `AutoplayDelay` | `24` | frames between actions |
 | `AutoplayPicksBuildings` | `true` | choose *which* building, not just where |
 | `AutoplayBlocksAchievements` | `false` | treat autoplay like a cheat |
+| `AutoplayUseItems` | `1` | spend blueprints: 0 never, 1 when full or behind, 2 always |
+| `AutoplayShopMinGold` | `25` | below this it takes the skip reward instead |
+| `AutoplayShopReserve` | `0` | gold it will not spend |
+| `AutoplayShopMinRarity` | `2` | lowest rarity worth buying |
 
 ## Building
 

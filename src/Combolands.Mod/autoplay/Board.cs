@@ -156,7 +156,32 @@ namespace Combolands.Mod.Autoplay
 
             board.PlazaTag = Tag("Plaza");
             board.CorruptedObeliskTag = Tag("CorruptedObelisk");
+            board.Pace = ReadPace();
             return board;
+        }
+
+        // How far behind the milestone the run is. Everything here is public on the
+        // game's own controllers; the only judgement is using LAST WEEK's score as the
+        // rate estimate rather than the milestone average - a board that has just come
+        // good is exactly when the answer matters, and the average would hide it.
+        private static Pace ReadPace()
+        {
+            const string Game = "GameState.GameController";
+            const string Score = "GameState.ScoreController";
+            const string Stats = "GameState.RunStatsController";
+
+            if (!Singletons.Exists(Game) || !Singletons.Exists(Score)) return Pace.Unknown;
+
+            var required = Singletons.Read(Game, "ScoreRequired", 0L);
+            if (required <= 0) return Pace.Unknown;
+
+            var score = Singletons.Read(Score, "Score", 0L);
+            var weeks = Singletons.Read(Game, "WeeksRemaining", 0);
+            var lastWeek = Singletons.Exists(Stats)
+                ? Singletons.Read(Stats, "BestScore", 0L)
+                : 0L;
+
+            return Pace.From(score, required, weeks, lastWeek);
         }
 
         private static int Max(int a, int b) { return a > b ? a : b; }

@@ -24,7 +24,7 @@ namespace Combolands.Mod.Autoplay
         private const string Milestone = "UI.MilestoneScreen.MilestoneScreen";
         private const string Dialog = "Shared.UI.MessageDialog";
         private const string Packs = "UI.PackSelectionPanel";
-        private const string Shop = "UI.ShopPanel";
+        private const string ShopPanelType = "UI.ShopPanel";
 
         internal static string Last = "";
 
@@ -184,6 +184,25 @@ namespace Combolands.Mod.Autoplay
 
         private static FieldInfo _options;
         private static Type _shopItemType;
+        private static int _packStuck;
+
+        private static bool HasConsumableSpace()
+        {
+            var panel = Singletons.Get("UI.ConsumablesPanel");
+            if (panel == null) return true;      // cannot tell; do not block on it
+
+            bool ambiguous;
+            var hasSpace = Reflect.MethodByName(panel.GetType(), "HasSpace", 1, out ambiguous);
+            if (hasSpace == null) return true;
+
+            try
+            {
+                // false: ask, do not make the game print the message at us.
+                var space = hasSpace.Invoke(panel, new object[] { false });
+                return !(space is bool) || (bool)space;
+            }
+            catch { return true; }
+        }
 
         // Picks the option that scores best on the board as it stands, which for a
         // blueprint is a real answer and for anything else falls back to "the first
@@ -200,7 +219,25 @@ namespace Combolands.Mod.Autoplay
             }
 
             var list = _options.GetValue(panel) as IList;
-            if (list == null || list.Count == 0) return false;
+            if (list == null || list.Count == 0) { _packStuck = 0; return false; }
+
+            // Clicking an option the game has nowhere to put does nothing but print
+            // "slots are full" - and then we click it again next tick, forever. Let
+            // the loop fall through instead: Items.UseOne spends a blueprint, which
+            // frees a slot, and the option is still here afterwards.
+            if (!HasConsumableSpace())
+            {
+                if (++_packStuck < 6) return false;
+
+                // Nothing freed a slot in six tries. An unopened pack is a loss; a
+                // run that never continues is a bigger one.
+                _packStuck = 0;
+                if (!Call(panel, "SkipSelection")) return false;
+                Last = "skipped a pack - no room for anything in it";
+                Log.Info("autoplay", Last);
+                return true;
+            }
+            _packStuck = 0;
 
             int best = -1;
             float bestScore = float.NegativeInfinity;
@@ -291,24 +328,11 @@ namespace Combolands.Mod.Autoplay
         // Buying is a judgement this does not make yet; leaving is not. A shop left
         // open is a run that never continues, so for now autoplay finishes shopping
         // without spending, and Shop.cs will take the decision over.
+        // The shop is a decision, not a door to close, so it has its own file.
         private static bool LeaveShop()
         {
-            var panel = Singletons.Get(Shop);
-            if (panel == null) return false;
-
-            var exterior = Read<object>(panel, "Exterior");
-            if (!Alive.Is(exterior)) return false;
-            if (!Read<bool>(exterior, "IsShown")) return false;
-
-            // SkipShop's own precondition, checked because SkipShop does not check it:
-            // its first line is _currentSkipReward.ProcessReward(...) and its last
-            // sets that field to null. IsShown stays true until a coroutine clears it,
-            // so without this the second call throws - and then every call after it.
-            if (!Alive.Is(Read<object>(exterior, "_currentSkipReward"))) return false;
-
-            if (!Call(exterior, "SkipShop")) return false;
-            Last = "skipped the shop";
-            Log.Info("autoplay", Last);
+            if (!Shop.Act()) return false;
+            Last = Shop.Last;
             return true;
         }
 

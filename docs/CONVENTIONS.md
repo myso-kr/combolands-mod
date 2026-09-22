@@ -75,6 +75,10 @@ autoplay/Offers.cs     describing a building from the choice bar, with no instan
 autoplay/Value.cs      what one placement on one tile is worth. Pure
 autoplay/Plan.cs       the ranked shortlist. Pure
 autoplay/Overlay.cs    drawing the shortlist. Reads, never writes
+autoplay/Pace.cs       how much hurry the milestone is in. Pure
+autoplay/Screens.cs    the screens a run stops on, and how to get past them
+autoplay/Shop.cs       whether to go in, what to buy, when to leave
+autoplay/Items.cs      spending what the run has picked up
 autoplay/Offers.cs     describing an offered building, with no instance to ask
 autoplay/Supervisor.cs the loop: WHEN to act, never what
 autoplay/Exec.cs       the only file in autoplay/ that WRITES to the game
