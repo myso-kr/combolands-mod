@@ -25,7 +25,7 @@
       "game_version": "v1.0.6",
       "verified": {
         "date": "2026-09-22",
-        "milestone": "M0",
+        "milestone": "M0+M1",
         "loader": "MelonLoader v0.7.3 Open-Beta",
         "melonloader_runtime_type": "net35",
         "game_type": "MonoBleedingEdge",
@@ -34,7 +34,30 @@
         "clr": "4.0.30319.42000",
         "harmony": "2.10.2.0",
         "anchors_resolved": 34,
-        "anchors_broken": 0
+        "anchors_broken": 0,
+        "font": {
+          "asset": "Galmuri11 SDF, created from TTF file path at runtime",
+          "population_mode": "Dynamic",
+          "render_mode": "SDFAA",
+          "sampling_point_size": 48,
+          "atlas": "1024x1024 Alpha8",
+          "hangul_added": "300/300",
+          "atlas_textures": 2,
+          "fallback_registered": [
+            "TMP_Settings.fallbackFontAssets",
+            "5 loaded TMP_FontAsset tables"
+          ]
+        },
+        "strings": {
+          "assets": 1088,
+          "unique_keys": 1088,
+          "blank_keys": 0,
+          "duplicate_keys": 0,
+          "words": 6552,
+          "with_tokens": 426,
+          "distinct_tokens": 236,
+          "longest_chars": 219
+        }
       }
     }
   ]

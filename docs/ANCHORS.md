@@ -78,8 +78,15 @@ Korean font installed. The `familyName` overload is the fallback if loading from
 path is refused at runtime, and it would mean falling back to Malgun Gothic on the
 player's own machine — a worse look, but not a dead end.
 
-That these *exist* is confirmed in the live runtime. Whether calling one actually
-rasterises Hangul here is M1's job.
+**M1 called one and it worked.** `CreateFontAsset(path, 0, 48, 9, SDFAA, 1024, 1024)`
+returned a Galmuri11 asset in `Dynamic` population mode, `TryAddCharacters` added
+300 of 300 Hangul syllables with none missing, and the atlas spilled to a second
+1024×1024 `Alpha8` texture on its own — so F4 and multi-atlas both behave.
+
+One thing the table cannot express: **F3 must be applied per scene, not once.** Only
+five TMP fonts are loaded at the menu; `monogram-extended SDF` and
+`THEBOLDFONT-FREEVERSION SDF` arrive with the game scene. A single startup pass
+leaves those two without Hangul.
 
 ## Cheat
 

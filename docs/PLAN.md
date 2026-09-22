@@ -123,13 +123,54 @@ var all = Resources.LoadAll<LocalizedStringAsset>("");
 AssetRipper and UABEA both have to guess at Odin's serialised layout. The game does
 not have to guess. The dump ships as a dev-only command in the plugin.
 
-Scale, estimated from a string scan of `resources.assets`: **768 candidates,
-~2,100 words**, including shader property names and other noise. Expect **500–700
-real strings**. One person can translate that.
+**Run at M1, this is the real scale:**
+
+```
+1088 assets   1088 unique keys   0 blank   0 duplicate
+6552 words    longest string 219 chars
+ 426 strings (39%) contain [tokens]   236 distinct token names
+```
+
+Keys are `<AssetName>.<Field>`: 441 `.Name`, 374 `.Description`, 18 `.Desc`,
+12 `.Title`, and a handful of one-offs. A scan of `resources.assets` had suggested
+"500–700 strings, ~2,100 words" — that estimate was **low by roughly 3×**, because
+the byte scan could not see strings that Odin had laid out differently.
 
 Nothing extracted ever gets committed — see `.gitignore`.
 
-### The font is the real risk
+### The font worked
+
+M1 is done. `CreateFontAsset` built a Galmuri11 asset from a TTF **file path** at
+runtime, rasterised Hangul into a dynamic atlas, and the game's own fonts fell back
+to it. Korean renders in the retail build:
+
+```
+family        Galmuri11 / Regular      population  Dynamic
+pointSize     48   lineHeight 64       renderMode  SDFAA
+requested     300 Hangul from U+AC00   added 300   missing 0
+atlasTextures 2                        atlas[0] 1024x1024 Alpha8
+fallback      TMP_Settings + all 5 loaded TMP fonts
+```
+
+Three things that only running it could tell us:
+
+**Multi-atlas spill starts early.** 300 syllables at 48 pt already needed a second
+1024×1024 texture — about 225 glyphs per atlas. A UI that touches 1,500 distinct
+syllables would hold 6–7 atlases, roughly 6–7 MB of `Alpha8`. Acceptable, but
+`samplingPointSize` is the dial: Galmuri11 is an 11-pixel face and the game draws it
+small, so dropping 48 → 24 quarters the footprint. M2 tunes it against how it looks.
+
+**Fallback registration has to run per scene.** At the menu only five TMP fonts were
+loaded — `LiberationSans SDF`, its `- Fallback`, `Ignore 17 SDF`, `m6x11plus SDF`,
+`Inconsolata-SemiBold SDF`. `monogram-extended SDF` and `THEBOLDFONT-FREEVERSION SDF`
+live in the game scene's assets and were not there yet. Registering once at startup
+would leave two fonts with no Hangul. `i18n/Font.cs` re-scans on every scene load.
+
+**The pixel grid reads well.** Galmuri beside `m6x11plus` looks deliberate rather
+than patched-in, which is what the font was chosen for. Pretendard and Noto Sans KR
+stay unused.
+
+### Why it was the real risk
 
 The game's TMP fonts are `m6x11plus SDF`, `monogram-extended SDF`,
 `THEBOLDFONT-FREEVERSION SDF`, `Inconsolata-SemiBold SDF` and `LiberationSans SDF`.
@@ -160,9 +201,8 @@ itself when one fills.
 face, so it sits beside `m6x11plus` instead of fighting it. Pretendard or Noto Sans
 KR are the fallback if the pixel grid reads badly at the game's sizes.
 
-M1 exists to prove this before any translation is written. If `CreateFontAsset` does
-not work at runtime here, the plan changes to building a TMP font AssetBundle in
-Unity 6000.0.66f2, and that is a different week.
+M1 existed to answer that before any translation was written. It did, in the
+affirmative, on day one — so the AssetBundle contingency is dropped.
 
 ### Translators must not glue particles to tokens
 
@@ -186,6 +226,11 @@ foreach (string text in array) {
 
 A word containing `[...]` is replaced by the resolved tag name and **the rest of that
 word is discarded**. So `[Farm]에` loses the `에`. Silently.
+
+This is not a corner case. The M1 dump found **426 of 1,088 strings (39%) carry at
+least one token, across 236 distinct token names** — `[Adjacent]` 98 times,
+`[InRange]` 93, `[Cooldown]` 84, `[BREAK]` 67, `[MultParam]` 46. Two out of five
+strings a translator touches are governed by this rule.
 
 The rules that follow:
 
@@ -295,13 +340,15 @@ M0  Ground truth                                      DONE 2026-09-22
     [x] all 34 anchors in ANCHORS.md resolve in the live Mono domain, 0 broken
     [x] RightShift+C+L arms the shipped cheats; +G, +B confirmed in game
 
-M1  Hangul on screen                                  week 1
-    Galmuri11.ttf → CreateFontAsset(path) → TMP_Settings.fallbackFontAssets
-    A hardcoded Korean string renders. Not □□□
-    Resources.LoadAll dump → generated/strings.en.json
-    GetText() postfix wired to locale/ko/strings.json
+M1  Hangul on screen                                  DONE 2026-09-22
+    [x] Galmuri11.ttf → CreateFontAsset(path) → dynamic atlas, 300/300 glyphs
+    [x] TMP_Settings.fallbackFontAssets + all loaded fonts' fallback tables
+    [x] Korean renders in the retail build. Not □□□ (screenshot, menu)
+    [x] Resources.LoadAll dump → 1088 keys / 6552 words
+    [x] GetText() postfix proven end to end
 
-M2  Translation complete                              week 2
+M2  Translation complete                              next
+    tune samplingPointSize against how the pixel grid reads
     _BaseData.Name patched · StringLookup verified
     tools/lint-locale.py in CI
     Hardcoded TMP text swept with UnityExplorer
@@ -361,11 +408,12 @@ is to ask.
 |---|---|---|
 | ~~MelonLoader will not boot Unity 6000 Mono~~ | ~~everything~~ | **retired at M0** |
 | ~~A patch target does not exist as documented~~ | ~~some module~~ | **retired at M0** — 34/34 |
-| `CreateFontAsset` fails at runtime | the whole language patch | open, **M1** |
+| ~~`CreateFontAsset` fails at runtime~~ | ~~the whole language patch~~ | **retired at M1** |
 | Future game updates move a patch target | some module | `ANCHORS.md` + `tests/Anchors` |
 | Token parser eats Korean particles | translation quality | `tools/lint-locale.py` |
 | Heuristic valuation plays badly | autoplay only | open, **M4**, visibly |
 
-The two cheapest to test and most expensive to be wrong about are gone on day one
-rather than in week three. The font is the last one of that kind left, which is why
-M1 is a proof and not a feature.
+Every risk that could have changed the plan is retired, on day one rather than in
+week three. What is left is work, not uncertainty — with one correction already
+paid for: the translation is **1,088 strings, not the 500–700 the byte scan
+suggested**, so M2 is a longer week than it was written to be.

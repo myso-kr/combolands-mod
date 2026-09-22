@@ -3,9 +3,11 @@
 Korean language patch, cheat widget, and autoplay for the Steam roguelike citybuilder
 *Combolands: Roguelike Citybuilder* (Crux Games, AppID 4075620).
 
-> **Status: M0 passed.** Nothing shippable is built yet. MelonLoader boots the game,
-> and all 34 patch targets in [ANCHORS.md](docs/ANCHORS.md) were confirmed in the
-> live Mono domain. See the documents below.
+> **Status: M0 and M1 passed.** Nothing shippable is built yet, but nothing is
+> unproven either. MelonLoader boots the game, all 34 patch targets in
+> [ANCHORS.md](docs/ANCHORS.md) resolve in the live Mono domain, a Galmuri11 font
+> asset is built from a TTF at runtime, and **Korean renders in the retail build**.
+> The string dump came to 1,088 keys. See the documents below.
 
 | Document | What it settles |
 |---|---|
