@@ -65,8 +65,18 @@ cluster. Each is labelled:
 x2.5    how many things this building wants within reach
 ```
 
+With **nothing in hand** it scouts the choice bar instead, giving each offered
+building its own colour and its own best tiles — `A1`, `B1`, `C1`. That is the
+question that comes first: which of these three, and where.
+
 It **reads game state and writes nothing** — the worst it can do is be wrong and be
 ignored, which is why it ships before the valuation is finished.
+
+Suggestions refresh when the board actually changes, not on a timer: the game
+announces every change through `BuildingExtensions.ResetCaches()`, and the helper
+listens to that. Only tiles the camera can see are suggested, since a highlight
+off-screen is invisible — though buildings off-screen still count towards the score,
+because one just past the edge is often what makes a visible tile good.
 
 Most of what it knows comes from the game itself. Every building declares what it is
 looking for and what each one is worth — a Woodcutter says "Trees, 30 each" — so the
@@ -103,6 +113,9 @@ game's own check reads a cache that cannot answer about thirty tiles in one fram
 | `PlayHelperShortlist` | `8` | how many tiles to highlight |
 | `PlayHelperSpread` | `3` | minimum tiles between suggestions. 0 shows the raw ranking |
 | `PlayHelperLabels` | `true` | draw `#rank` and `xN` on each tile |
+| `PlayHelperVisibleOnly` | `true` | only suggest tiles the camera can see |
+| `PlayHelperScout` | `true` | with nothing in hand, show where each offered building would go |
+| `PlayHelperOfferPicks` | `2` | tiles per offered building while scouting |
 
 ## Building
 

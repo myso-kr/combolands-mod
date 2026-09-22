@@ -1,6 +1,8 @@
 using System.Collections.Generic;
 using System.Reflection;
+using HarmonyLib;
 using UnityEngine;
+using HarmonyInstance = HarmonyLib.Harmony;
 
 namespace Combolands.Mod.Autoplay
 {
@@ -30,9 +32,31 @@ namespace Combolands.Mod.Autoplay
         private static GUIStyle _rankStyle, _noteStyle;
         private static int _styleTileHeight = -1;
 
+        // One hue per offered building when scouting, so three suggestions for the
+        // Hunting Lodge are visibly not three suggestions for the Apothecary.
+        private static readonly Color[] OfferHues =
+        {
+            new Color(0.35f, 0.90f, 0.45f),
+            new Color(0.40f, 0.70f, 1.00f),
+            new Color(1.00f, 0.72f, 0.30f),
+            new Color(0.85f, 0.55f, 0.95f),
+        };
+        private const string OfferLetters = "ABCD";
+
+        private struct Marked
+        {
+            public Plan.Candidate Candidate;
+            public int Offer;      // -1 when the player is holding the piece
+            public int Rank;
+        }
+
+        private static List<Marked> _marks = new List<Marked>();
+        private static string _scoutLine = "";
+
         private static List<Plan.Candidate> _shown = new List<Plan.Candidate>();
         private static object _lastPiece;
-        private static int _lastBuildingCount = -1;
+        private static RectInt _lastWindow;
+        private static bool _dirty = true;
         private static int _cooldown;
 
         internal static bool Enabled;
@@ -47,8 +71,39 @@ namespace Combolands.Mod.Autoplay
         internal static void Clear()
         {
             _shown.Clear();
+            _marks.Clear();
+            _scoutLine = "";
             _lastPiece = null;
-            _lastBuildingCount = -1;
+            _lastWindow = default(RectInt);
+            _dirty = true;
+        }
+
+        // The game's own "the board changed" announcement.
+        //
+        // BuildingExtensions.ResetCaches() is called from seventeen places - a
+        // building created or removed, a stat changed, a paint applied, a council
+        // vote landing - and it is exactly the set of events that invalidate a
+        // shortlist. Polling the building count, which is what this used to do, misses
+        // every change that leaves the count alone.
+        internal static void Apply(HarmonyInstance harmony)
+        {
+            var extensions = Anchors.Type("Entities.BuildingExtensions");
+            var reset = Anchors.Method(extensions, "ResetCaches");
+            if (reset == null)
+            {
+                Log.Warn("helper", "BuildingExtensions.ResetCaches not found - "
+                                 + "suggestions will only refresh when the held building changes");
+                return;
+            }
+
+            harmony.Patch(reset, postfix: new HarmonyMethod(
+                typeof(Overlay).GetMethod(nameof(MarkDirty), BindingFlags.NonPublic | BindingFlags.Static)));
+            Log.Info("helper", "board-change hook installed");
+        }
+
+        private static void MarkDirty()
+        {
+            _dirty = true;
         }
 
         // --- recompute -----------------------------------------------------------
@@ -61,18 +116,33 @@ namespace Combolands.Mod.Autoplay
             if (!Enabled) return;
 
             var piece = State.PieceBeingPlaced();
-            if (piece == null) { Clear(); return; }
 
+            // Nothing in hand: scout the choice bar instead. That is the question a
+            // player asks BEFORE picking a card up - which of these three, and where -
+            // and it is the one the helper could not answer until now.
+            if (piece == null)
+            {
+                if (Config.HelperScout) Scout();
+                else Clear();
+                return;
+            }
+
+            // Still rate-limited. ResetCaches can fire several times in one frame
+            // during a trigger chain, and recomputing per call would be a stutter for
+            // no gain.
             if (_cooldown > 0) { _cooldown--; return; }
 
-            var count = CountBuildings();
-            if (ReferenceEquals(piece, _lastPiece) && count == _lastBuildingCount) return;
+            var window = VisibleTiles();
+            if (!_dirty && ReferenceEquals(piece, _lastPiece) && window.Equals(_lastWindow)) return;
 
             _lastPiece = piece;
-            _lastBuildingCount = count;
-            _cooldown = 10;
+            _lastWindow = window;
+            _dirty = false;
+            _cooldown = 6;
 
-            var board = Board.Read(piece);
+            var board = Board.Read(piece, Config.HelperVisibleOnly
+                ? new Rect(window.xMin, window.yMin, window.width, window.height)
+                : (Rect?)null);
             if (board == null) { _shown.Clear(); return; }
 
             // Ranked wide, then filtered by the game's own rule, then cut to what is
@@ -86,28 +156,100 @@ namespace Combolands.Mod.Autoplay
                 if (Board.CanBuildAt(piece, candidate.X, candidate.Y)) legal.Add(candidate);
             }
             _shown = legal;
+
+            _marks.Clear();
+            for (int i = 0; i < _shown.Count; i++)
+                _marks.Add(new Marked { Candidate = _shown[i], Offer = -1, Rank = i });
+            _scoutLine = "";
         }
 
-        private static PropertyInfo _buildingsProperty;
+        // --- scouting ------------------------------------------------------------
 
-        private static int CountBuildings()
+        private static int _lastOfferSignature = int.MinValue;
+
+        private static void Scout()
         {
-            var controller = Singletons.Get("Entities.BuildingController");
-            if (controller == null) return -1;
+            if (_cooldown > 0) { _cooldown--; return; }
 
-            if (_buildingsProperty == null)
-                _buildingsProperty = Anchors.Property(controller.GetType(), "Buildings");
-            if (_buildingsProperty == null) return -1;
+            var offers = Offers.Current();
+            if (offers.Count == 0) { _marks.Clear(); _shown.Clear(); _scoutLine = ""; return; }
 
-            var list = _buildingsProperty.GetValue(controller, null) as System.Collections.ICollection;
-            return list == null ? -1 : list.Count;
+            var window = VisibleTiles();
+            int signature = Signature(offers, window);
+            if (!_dirty && signature == _lastOfferSignature) return;
+
+            _lastOfferSignature = signature;
+            _lastPiece = null;
+            _dirty = false;
+            _cooldown = 6;
+
+            var rect = Config.HelperVisibleOnly
+                ? new Rect(window.xMin, window.yMin, window.width, window.height)
+                : (Rect?)null;
+
+            var marks = new List<Marked>();
+            var summary = new System.Text.StringBuilder();
+
+            for (int i = 0; i < offers.Count && i < OfferHues.Length; i++)
+            {
+                var board = Board.ReadFor(offers[i], rect);
+                if (board == null) continue;
+
+                var picks = Plan.Best(board, Config.HelperOfferPicks, Config.HelperSpread);
+                for (int r = 0; r < picks.Count; r++)
+                    marks.Add(new Marked { Candidate = picks[r], Offer = i, Rank = r });
+
+                if (summary.Length > 0) summary.Append("    ");
+                summary.Append(OfferLetters[i]);
+                summary.Append(" ");
+                summary.Append(offers[i].Name);
+                summary.Append(picks.Count > 0
+                    ? string.Format(" -> ({0},{1}) x{2:0.#}", picks[0].X, picks[0].Y, picks[0].Score.TargetHits)
+                    : " -> nowhere legal in view");
+            }
+
+            _marks = marks;
+            _shown.Clear();
+            _scoutLine = summary.ToString();
+        }
+
+        // Cheap "has anything changed" over the offers plus the view.
+        private static int Signature(List<Offer> offers, RectInt window)
+        {
+            int hash = 17;
+            for (int i = 0; i < offers.Count; i++) hash = hash * 31 + offers[i].Tag;
+            hash = hash * 31 + window.xMin;
+            hash = hash * 31 + window.yMin;
+            hash = hash * 31 + window.width;
+            hash = hash * 31 + window.height;
+            return hash;
+        }
+
+        // Which tiles the camera can actually show, in tile coordinates.
+        //
+        // A suggestion off the edge of the screen is invisible - highlights are drawn
+        // in world space - so the shortlist just looks short. One tile of slack each
+        // way keeps a suggestion from vanishing the instant the view nudges.
+        private static RectInt VisibleTiles()
+        {
+            var camera = Camera.main;
+            if (camera == null) return new RectInt(0, 0, 9999, 9999);
+
+            var bottomLeft = camera.ScreenToWorldPoint(Vector3.zero);
+            var topRight = camera.ScreenToWorldPoint(new Vector3(Screen.width, Screen.height, 0f));
+
+            int minX = Mathf.FloorToInt(bottomLeft.x) - 1;
+            int minY = Mathf.FloorToInt(bottomLeft.y) - 1;
+            int maxX = Mathf.CeilToInt(topRight.x) + 1;
+            int maxY = Mathf.CeilToInt(topRight.y) + 1;
+            return new RectInt(minX, minY, maxX - minX, maxY - minY);
         }
 
         // --- draw ----------------------------------------------------------------
 
         internal static void Draw()
         {
-            if (!Enabled || _shown.Count == 0) return;
+            if (!Enabled || _marks.Count == 0) return;
             if (Event.current.type != EventType.Repaint) return;
 
             var camera = Camera.main;
@@ -125,21 +267,24 @@ namespace Combolands.Mod.Autoplay
             // has to rebuild the styles.
             EnsureStyles(Mathf.RoundToInt(tileH));
 
-            for (int i = 0; i < _shown.Count; i++)
+            for (int i = 0; i < _marks.Count; i++)
             {
-                var candidate = _shown[i];
-                var world = camera.WorldToScreenPoint(new Vector3(candidate.X, candidate.Y, 0f));
+                var mark = _marks[i];
+                var world = camera.WorldToScreenPoint(
+                    new Vector3(mark.Candidate.X, mark.Candidate.Y, 0f));
                 if (world.z < 0f) continue;
 
                 var rect = new Rect(world.x - tileW * 0.5f,
                                     Screen.height - world.y - tileH * 0.5f,
                                     tileW, tileH);
 
-                GUI.color = Tint(i, _shown.Count);
+                GUI.color = mark.Offer < 0
+                    ? Tint(mark.Rank, _marks.Count)
+                    : OfferTint(mark.Offer, mark.Rank);
                 GUI.DrawTexture(rect, _fill);
                 GUI.color = Color.white;
 
-                if (Config.HelperLabels) Label(rect, i, candidate);
+                if (Config.HelperLabels) Label(rect, mark);
             }
         }
 
@@ -148,14 +293,18 @@ namespace Combolands.Mod.Autoplay
         // Both carry a marker rather than being left as bare numbers, and EVERY
         // suggestion is labelled now - not just the first three. An unlabelled
         // highlight is one whose standing the player has to guess.
-        private static void Label(Rect tile, int index, Plan.Candidate candidate)
+        private static void Label(Rect tile, Marked mark)
         {
+            var candidate = mark.Candidate;
             bool hasTargets = candidate.Score.TargetHits >= 0.05f;
+            string head = mark.Offer < 0
+                ? "#" + (mark.Rank + 1)
+                : OfferLetters[mark.Offer] + (mark.Rank + 1).ToString();
 
             var rank = hasTargets
                 ? new Rect(tile.x, tile.y - tile.height * 0.10f, tile.width, tile.height * 0.70f)
                 : tile;
-            Shadowed(rank, "#" + (index + 1), _rankStyle);
+            Shadowed(rank, head, _rankStyle);
 
             if (!hasTargets) return;
 
@@ -173,6 +322,13 @@ namespace Combolands.Mod.Autoplay
             GUI.Label(shadow, text, style);
             GUI.color = Color.white;
             GUI.Label(rect, text, style);
+        }
+
+        private static Color OfferTint(int offer, int rank)
+        {
+            var colour = OfferHues[offer % OfferHues.Length];
+            colour.a = Mathf.Lerp(AlphaBest, AlphaWorst, rank / 3f);
+            return colour;
         }
 
         private static Color Tint(int index, int count)
@@ -211,7 +367,8 @@ namespace Combolands.Mod.Autoplay
 
         // The one line that says what the marks on the map mean.
         internal const string Legend =
-            "#n = rank.   xN = how many things this building wants within reach.";
+            "#n = rank for the building in hand.   An = rank for offered building A.   "
+          + "xN = how many things it wants within reach.";
 
         // What the panel shows about the current shortlist.
         internal static string Summary()
@@ -219,6 +376,7 @@ namespace Combolands.Mod.Autoplay
             if (!Enabled) return "off";
             if (Log.HasFailed("helper.refresh"))
                 return "STOPPED after an error - see MelonLoader/Latest.log";
+            if (_scoutLine.Length > 0) return "scouting:  " + _scoutLine;
             if (_shown.Count == 0) return "on - nothing to suggest (hold a building)";
 
             var best = _shown[0];

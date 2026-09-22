@@ -57,7 +57,10 @@ namespace Combolands.Mod
             }
 
             if (Config.PlayHelper)
+            {
+                Log.Guard("helper.hook", () => Overlay.Apply(Patcher));
                 Log.Info("helper", "placement overlay ready on " + Config.HelperKey);
+            }
         }
 
         public override void OnSceneWasInitialized(int buildIndex, string sceneName)
@@ -72,6 +75,7 @@ namespace Combolands.Mod
             // it on load - and the save is written from the map.
             Build.Reset();
             Overlay.Clear();
+            Offers.Forget();
 
             if (_dumped || !Config.DumpStrings) return;
             _dumped = true;

@@ -58,9 +58,34 @@ namespace Combolands.Mod.Autoplay
             return false;
         }
 
+        // Terrain, for a building that is only being scouted.
+        //
+        // When the player is holding the piece this is redundant - the game's own
+        // CanBuildBuildingAt is asked, and it knows more than we do. It matters for
+        // the choice bar, where there is no instance to ask about and pointing at
+        // ocean would be worse than saying nothing.
+        internal static bool WrongTerrain(Snapshot board, int x, int y)
+        {
+            var allowed = board.CandidateTileTypes;
+            if (allowed == null || allowed.Length == 0) return false;
+            if (board.TileTypes == null) return false;
+
+            int index = y * board.Width + x;
+            if (index < 0 || index >= board.TileTypes.Length) return false;
+
+            int type = board.TileTypes[index];
+            if (type < 0) return false;           // not read; do not pretend to know
+
+            for (int i = 0; i < allowed.Length; i++)
+                if (allowed[i] == type) return false;
+            return true;
+        }
+
         internal static bool Allows(Snapshot board, int x, int y)
         {
-            return !SameTypeInRange(board, x, y) && !NearCorruptedObelisk(board, x, y);
+            return !SameTypeInRange(board, x, y)
+                && !NearCorruptedObelisk(board, x, y)
+                && !WrongTerrain(board, x, y);
         }
 
         private static bool AdjacentTo(Snapshot board, int x, int y, int tag)

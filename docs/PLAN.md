@@ -374,6 +374,67 @@ be undone by not saving, and a corrupted save cannot.
 The only part with no existing scaffolding, and the one that can fail on judgement
 rather than on plumbing. It ships in three stages, and **stage 1 is useful alone**.
 
+### Stage 1 grew a second question
+
+The helper started by answering "where does this building go?" — which is only the
+*second* question a player asks. The first is "which of these three, and where?",
+and it is asked while the cards are still on the bar.
+
+Scouting answers it. With nothing in hand, each offered building gets its own hue
+and its own best tiles, labelled `A1`, `B1`, `C1`. Picking one up switches back to
+the precise single-building mode.
+
+Describing a building that has no instance took some care, and the obvious two
+routes are both wrong:
+
+| Route | Why not |
+|---|---|
+| `InstantiateBuilding` | a **write**. The helper does not write |
+| `BuildingData.BuildingPrefab` | works, and lies. Reading `Values.Range` off a prefab runs the live modifier chain against a piece sitting at (0,0), so a `TownBell` near the origin changes the answer |
+
+What works is the **behaviour's own base fields** — what a building is worth before
+it is anywhere:
+
+```
+_range, _majorCategory, _minorCategories     base stats
+GetBehaviourTargetTags()                     parameterless
+GetBehaviourTargetCategories()               parameterless
+GetScoreForTag(null, tag)                    ignores the piece in the base impl
+GetTileTypesCanBePlacedOn(tag)               takes a TAG, not an instance
+```
+
+That last one is what keeps a scouted suggestion off the ocean.
+
+**Two limits, stated rather than hidden.** Nineteen behaviours override
+`CanBeBuiltOn` with a rule of their own ("only next to `[Trees]`"), and
+`HasRangePlacementRestriction` dereferences the piece. Neither can be answered
+without an instance, so scouting filters on tile type and the same-type rule only,
+and the exact rules apply the moment the building is picked up. The restriction is
+assumed **on** while scouting, which hides a legal tile rather than offering an
+illegal one.
+
+### Refreshing when the board actually changes
+
+The shortlist used to be recomputed when the held piece changed or the building
+*count* changed. That misses every change which leaves the count alone — a paint
+applied, a mult or range altered, a transformation, a council vote landing.
+
+`BuildingExtensions.ResetCaches()` is the game's own announcement that the board
+moved, called from seventeen places, and it is exactly the set of events that
+invalidate a shortlist. A postfix on it is exact invalidation rather than polling.
+The rate limit stays: a trigger chain can fire it several times in one frame.
+
+### Only suggesting what can be seen
+
+Highlights are drawn in world space, so a suggestion off the edge of the screen is
+invisible and the shortlist merely looks short. The search is clamped to the camera
+viewport plus a tile of slack.
+
+The window narrows where a piece may be **placed**, never what the valuation may
+**see** — a building just off screen is often exactly what makes an on-screen tile
+good, and `WindowTests.ABuildingOUTSIDETheWindowStillCounts` pins that. It also
+makes the read cheaper, which matters now that it happens more often.
+
 ```
 Stage 1  Play helper — an overlay
          Walk every legal tile for the piece being held, score it, highlight the

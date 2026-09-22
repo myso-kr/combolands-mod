@@ -2,6 +2,7 @@ using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Reflection;
+using UnityEngine;
 
 namespace Combolands.Mod.Autoplay
 {
@@ -22,7 +23,7 @@ namespace Combolands.Mod.Autoplay
         private static bool _resolved;
         private static PropertyInfo _grid, _gridWidth, _gridHeight;
         private static MethodInfo _getTile;
-        private static PropertyInfo _tileX, _tileY, _tileEmpty, _tileCantBuild;
+        private static PropertyInfo _tileX, _tileY, _tileEmpty, _tileCantBuild, _tileType;
         private static PropertyInfo _buildingList;
         private static PropertyInfo _pieceX, _pieceY, _pieceRange, _pieceTag, _pieceCategories;
 
@@ -32,9 +33,64 @@ namespace Combolands.Mod.Autoplay
         }
 
         // Returns null when the board cannot be read, which outside a run is normal.
-        internal static Snapshot Read(object candidatePiece)
+        //
+        // `window` is where suggestions may go - normally what the camera can see.
+        // Tiles are only read inside it plus a margin, because reading a tile is two
+        // reflection calls and a 44x27 board is 1,188 of them. Buildings are read
+        // everywhere regardless: one off-screen can easily be in range of a tile on
+        // screen, and leaving it out would silently change the answer.
+        internal static Snapshot Read(object candidatePiece, Rect? window = null)
         {
-            if (!Available || candidatePiece == null) return null;
+            if (candidatePiece == null) return null;
+
+            var board = ReadBoard(window, RangeOf(candidatePiece));
+            if (board == null) return null;
+
+            board.Candidate = ToPiece(candidatePiece);
+
+            // The same-type rule is the candidate's own property, not the tile's, so
+            // it is asked once per refresh. Honouring the cheat toggle here keeps the
+            // helper and "ignore all placement restrictions" telling the same story.
+            board.CandidateRangeRestricted =
+                !Cheat.Build.IgnoreRestrictions && HasRangeRestriction(candidatePiece);
+            ReadDeclaredTargets(board, candidatePiece);
+
+            // Terrain is left to the game: CanBuildBuildingAt is asked about every
+            // shortlisted tile and knows the nineteen per-building overrides we do not.
+            board.CandidateTileTypes = null;
+            return board;
+        }
+
+        // Scouting: a building from the choice bar, which has no instance to ask.
+        internal static Snapshot ReadFor(Offer offer, Rect? window = null)
+        {
+            var board = ReadBoard(window, offer.Piece.Range);
+            if (board == null) return null;
+
+            board.Candidate = offer.Piece;
+            board.TargetTagScores = offer.TagScores;
+            board.TargetCategoryScores = offer.CategoryScores;
+            board.MaxTargetScore = offer.MaxScore;
+            board.CandidateTileTypes = offer.TileTypes;
+
+            // HasRangePlacementRestriction dereferences the piece, so it cannot be
+            // asked about a building that does not exist yet. True is the conservative
+            // answer - it is the default for almost everything - and being wrong here
+            // hides a legal tile rather than suggesting an illegal one.
+            board.CandidateRangeRestricted = !Cheat.Build.IgnoreRestrictions;
+            return board;
+        }
+
+        private static int RangeOf(object piece)
+        {
+            if (!Resolve() || _pieceRange == null) return 2;
+            try { return (int)_pieceRange.GetValue(piece, null); }
+            catch { return 2; }
+        }
+
+        private static Snapshot ReadBoard(Rect? window, int candidateRange)
+        {
+            if (!Available) return null;
             if (!Resolve()) return null;
 
             var map = Singletons.Get(Map);
@@ -48,10 +104,27 @@ namespace Combolands.Mod.Autoplay
             };
             if (board.Width <= 0 || board.Height <= 0) return null;
             board.Buildable = new bool[board.Width * board.Height];
+            board.TileTypes = new int[board.Width * board.Height];
+            for (int i = 0; i < board.TileTypes.Length; i++) board.TileTypes[i] = -1;
+
+            if (window.HasValue)
+                board.SearchWithin((int)window.Value.xMin, (int)window.Value.yMin,
+                                   (int)window.Value.xMax, (int)window.Value.yMax);
+            else
+                board.SearchWithin(0, 0, board.Width - 1, board.Height - 1);
+
+            // Value.Room looks a short way outside each candidate tile, so the read
+            // has to reach past the window by that much or tiles at its edge would
+            // look boxed in by nothing.
+            int margin = (candidateRange < 2 ? 2 : candidateRange) + 1;
+            int fromX = Max(0, board.SearchMinX - margin);
+            int fromY = Max(0, board.SearchMinY - margin);
+            int toX = Min(board.Width - 1, board.SearchMaxX + margin);
+            int toY = Min(board.Height - 1, board.SearchMaxY + margin);
 
             var args = new object[2];
-            for (int y = 0; y < board.Height; y++)
-                for (int x = 0; x < board.Width; x++)
+            for (int y = fromY; y <= toY; y++)
+                for (int x = fromX; x <= toX; x++)
                 {
                     args[0] = x; args[1] = y;
                     var tile = _getTile.Invoke(grid, args);
@@ -63,6 +136,10 @@ namespace Combolands.Mod.Autoplay
                     var empty = (bool)_tileEmpty.GetValue(tile, null);
                     var cantBuild = (bool)_tileCantBuild.GetValue(tile, null);
                     board.Buildable[y * board.Width + x] = empty && !cantBuild;
+
+                    if (_tileType != null)
+                        board.TileTypes[y * board.Width + x] =
+                            Convert.ToInt32(_tileType.GetValue(tile, null));
                 }
 
             var live = _buildingList.GetValue(Singletons.Get(Buildings), null) as IEnumerable;
@@ -75,18 +152,13 @@ namespace Combolands.Mod.Autoplay
                 }
             }
 
-            board.Candidate = ToPiece(candidatePiece);
-
-            // The same-type rule is the candidate's own property, not the tile's, so
-            // it is asked once per refresh. Honouring the cheat toggle here keeps the
-            // helper and "ignore all placement restrictions" telling the same story.
-            board.CandidateRangeRestricted =
-                !Cheat.Build.IgnoreRestrictions && HasRangeRestriction(candidatePiece);
             board.PlazaTag = Tag("Plaza");
             board.CorruptedObeliskTag = Tag("CorruptedObelisk");
-            ReadDeclaredTargets(board, candidatePiece);
             return board;
         }
+
+        private static int Max(int a, int b) { return a > b ? a : b; }
+        private static int Min(int a, int b) { return a < b ? a : b; }
 
         private static Piece ToPiece(object piece)
         {
@@ -247,6 +319,7 @@ namespace Combolands.Mod.Autoplay
             _tileY = Anchors.Property(tileType, "Y");
             _tileEmpty = Anchors.Property(tileType, "IsEmpty");
             _tileCantBuild = Anchors.Property(tileType, "CantBuildOn");
+            _tileType = Anchors.Property(tileType, "Type");
 
             _buildingList = Anchors.Property(buildingsType, "Buildings");
 

@@ -56,6 +56,14 @@ namespace Combolands.Mod.Autoplay
         // tiles it actually wants to show.
         public bool[] Buildable;
 
+        // TileType per tile, -1 where not read. Only needed for scouting: when the
+        // player is actually holding a building the game's own CanBuildBuildingAt
+        // answers the terrain question exactly.
+        public int[] TileTypes;
+
+        // Which TileTypes the candidate may sit on, or null for "do not check".
+        public int[] CandidateTileTypes;
+
         public List<Piece> Buildings = new List<Piece>();
 
         // The piece the player is holding. Its X and Y are meaningless - the whole
@@ -104,6 +112,27 @@ namespace Combolands.Mod.Autoplay
                 if (TargetCategoryScores.TryGetValue(other.Categories[i], out score) && score > best)
                     best = score;
             return best;
+        }
+
+        // Which tiles are worth CONSIDERING, as opposed to which are on the board.
+        //
+        // A suggestion the player cannot see is not a suggestion: highlights are drawn
+        // in world space, so an off-screen one just makes the shortlist look short.
+        // Buildings outside the window still count - one off-screen can easily be in
+        // range of a tile on it - so this narrows where we place, never what we see.
+        //
+        // Defaults cover everything, which is what the tests use.
+        public int SearchMinX;
+        public int SearchMinY;
+        public int SearchMaxX = int.MaxValue;
+        public int SearchMaxY = int.MaxValue;
+
+        public void SearchWithin(int minX, int minY, int maxX, int maxY)
+        {
+            SearchMinX = minX < 0 ? 0 : minX;
+            SearchMinY = minY < 0 ? 0 : minY;
+            SearchMaxX = maxX > Width - 1 ? Width - 1 : maxX;
+            SearchMaxY = maxY > Height - 1 ? Height - 1 : maxY;
         }
 
         public bool InBounds(int x, int y)

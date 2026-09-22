@@ -29,8 +29,13 @@ namespace Combolands.Mod.Autoplay
         {
             var all = new List<Candidate>(256);
 
-            for (int y = 0; y < board.Height; y++)
-                for (int x = 0; x < board.Width; x++)
+            int minX = board.SearchMinX < 0 ? 0 : board.SearchMinX;
+            int minY = board.SearchMinY < 0 ? 0 : board.SearchMinY;
+            int maxX = board.SearchMaxX > board.Width - 1 ? board.Width - 1 : board.SearchMaxX;
+            int maxY = board.SearchMaxY > board.Height - 1 ? board.Height - 1 : board.SearchMaxY;
+
+            for (int y = minY; y <= maxY; y++)
+                for (int x = minX; x <= maxX; x++)
                 {
                     if (!board.IsBuildable(x, y)) continue;
 

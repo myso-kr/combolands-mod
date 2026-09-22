@@ -146,6 +146,11 @@ bypass has to be rebuilt against the method body.
 | P8 | the held piece | `Interaction.InteractionStates.PlacingBuilding._currentlyPlacing` (private field) | **the helper never has anything to suggest** | `autoplay/State.cs` |
 | P9 | tiles | `Environment.Tile` — `IsEmpty`, `CantBuildOn` | the helper suggests occupied tiles | `autoplay/Board.cs` |
 | P10 | piece shape | `Entities.Building` — `X`, `Y`, `Range`, `Tag`, `Categories` | valuation quality | `autoplay/Board.cs` |
+| P15 | board changed | `Entities.BuildingExtensions.ResetCaches()` | suggestions go stale until the held building changes | `autoplay/Overlay.cs` |
+| P16 | what is on offer | `UI.BuildingChoiceBar.Choices` · `UI.BuildingChoiceButton.GameTag` | **scouting stops entirely** | `autoplay/Offers.cs` |
+| P17 | base stats, no instance | `_BuildingBehaviour._range` · `_majorCategory` · `_minorCategories` · `BuildingBehaviours.Instance.BuildingBehaviourDict` | scouting stops | `autoplay/Offers.cs` |
+| P18 | terrain by tag | `_BuildingBehaviour.GetTileTypesCanBePlacedOn(GameTag)` · `Environment.Tile.Type` | scouting points at ocean | `autoplay/Offers.cs`, `autoplay/Rules.cs` |
+| P19 | piece name | `Entities.GamePieceDataHolder.GetDataFor(GameTag)` → `_BaseData.Name` | the panel lists tags instead of names | `autoplay/Offers.cs` |
 | P11 | range shape | ``Library.Grid.GridDrawingAlgorithms.GetFilledCircle`` — `dx*dx + dy*dy < r*r + r` | every highlight is subtly wrong | `autoplay/Snapshot.cs` |
 | P12 | declared targets | `GamePiece.TargetTags` · `_GamePieceBehaviour.GetScoreForTag` · `GamePieceLocalValues.TargetCategories` · `GetScoreForTargetCategory` | **the helper stops knowing what a building wants** and falls back to bare adjacency | `autoplay/Board.cs` |
 | P13 | same-type rule | `_BuildingBehaviour.HasRangePlacementRestriction(GamePiece)` | the helper suggests tiles the game refuses | `autoplay/Board.cs`, `autoplay/Rules.cs` |
@@ -160,6 +165,16 @@ P14 is a dependency on a **precise** fact rather than a general one: that argume
 gates one `if` and no others. A refactor that widened it to cover more checks would
 silently make the helper suggest illegal tiles, and it would still compile, run and
 look fine. Re-read `CanBuildBuildingAt` after a game update.
+
+P17 is a dependency on **private fields**, which is unusual here and deliberate.
+The public accessors all take a `GamePiece`, and the overrides dereference it — so
+asking them about a building that does not exist yet means passing `null` and hoping.
+The fields are the base values, which is exactly what a building not yet on the board
+is worth.
+
+P18 is the reason scouting is honest rather than approximate about terrain: it takes
+a tag. Nineteen behaviours override `CanBeBuiltOn` with rules that need an instance,
+and those stay unevaluated until the player picks the building up.
 
 P11 is the one anchor this mod **copies rather than calls**. Asking the game whether
 each of 1,188 tiles is in range of each building would be tens of thousands of

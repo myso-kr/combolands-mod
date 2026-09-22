@@ -27,6 +27,9 @@ namespace Combolands.Mod
         private static MelonPreferences_Entry<int> _helperShortlist;
         private static MelonPreferences_Entry<int> _helperSpread;
         private static MelonPreferences_Entry<bool> _helperLabels;
+        private static MelonPreferences_Entry<bool> _helperVisibleOnly;
+        private static MelonPreferences_Entry<bool> _helperScout;
+        private static MelonPreferences_Entry<int> _helperOfferPicks;
 
         internal static void Load()
         {
@@ -89,6 +92,15 @@ namespace Combolands.Mod
 
             _helperLabels = _cat.CreateEntry("PlayHelperLabels", true,
                 description: "Draw #rank and xN target count on each highlighted tile.");
+            _helperVisibleOnly = _cat.CreateEntry("PlayHelperVisibleOnly", true,
+                description: "Only suggest tiles the camera can see. Off searches the whole map.");
+
+            // With nothing in hand, answer the question that comes first: which of
+            // the offered buildings, and where.
+            _helperScout = _cat.CreateEntry("PlayHelperScout", true,
+                description: "With no building in hand, show where each offered building would go.");
+            _helperOfferPicks = _cat.CreateEntry("PlayHelperOfferPicks", 2,
+                description: "Tiles highlighted per offered building while scouting.");
 
             _dumpStrings = _cat.CreateEntry("DumpStrings", false,
                 description: "Developer: write every LocalizedStringAsset to generated/strings.en.json on first scene.");
@@ -113,6 +125,9 @@ namespace Combolands.Mod
         internal static int HelperShortlist { get { return Mathf.Clamp(_helperShortlist.Value, 1, 20); } }
         internal static int HelperSpread { get { return Mathf.Clamp(_helperSpread.Value, 0, 12); } }
         internal static bool HelperLabels { get { return _helperLabels.Value; } }
+        internal static bool HelperVisibleOnly { get { return _helperVisibleOnly.Value; } }
+        internal static bool HelperScout { get { return _helperScout.Value; } }
+        internal static int HelperOfferPicks { get { return Mathf.Clamp(_helperOfferPicks.Value, 1, 6); } }
 
         private static KeyCode _parsedHelperKey = KeyCode.None;
 

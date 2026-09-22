@@ -70,6 +70,7 @@ autoplay/Snapshot.cs   a board as plain data. No Unity types, no game types
 autoplay/Board.cs      the only code that touches MapController/BuildingController
 autoplay/State.cs      InteractionState gating — when it is safe to act
 autoplay/Rules.cs      the placement rules we must evaluate ourselves. Pure
+autoplay/Offers.cs     describing a building from the choice bar, with no instance
 autoplay/Value.cs      what one placement on one tile is worth. Pure
 autoplay/Plan.cs       the ranked shortlist. Pure
 autoplay/Overlay.cs    drawing the shortlist. Reads, never writes
