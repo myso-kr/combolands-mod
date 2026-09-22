@@ -1,0 +1,44 @@
+Combolands Mod
+Copyright (c) 2026 myso-kr
+
+Unofficial fan-made mod. Not affiliated with, endorsed by, or supported by Crux
+Games, Valve, or anyone else connected to Combolands: Roguelike Citybuilder.
+
+WHAT THIS IS
+------------
+A MelonLoader plugin that adds a Korean language patch, a cheat widget, and an
+autoplay helper to a copy of the game you already own. It is distributed free of
+charge and may not be sold, bundled into a paid product, or put behind a paywall.
+
+WHAT IT DOES NOT CONTAIN
+------------------------
+No original game text, art, audio, code or assets. The game's English strings are
+read out of YOUR installed copy at runtime and written to a git-ignored directory;
+the translation file holds only the game's own string keys and the Korean written
+for this project. Without a legitimately purchased and installed copy of the game,
+there is nothing here to run.
+
+WHAT IT CHANGES ON DISK
+-----------------------
+Nothing that ships with the game. Installing adds files beside it:
+
+    version.dll                      MelonLoader
+    MelonLoader/                     MelonLoader
+    Mods/CombolandsMod.dll           this mod
+    UserData/Combolands/             locale, font, config
+
+Deleting those four returns the install to stock. No game file is patched,
+replaced or rewritten.
+
+RISKS
+-----
+Cheats and autoplay change live game state. Back up your saves first:
+
+    %USERPROFILE%\AppData\LocalLow\Crux Games\Combolands\
+
+Provided as is, without warranty of any kind. See LICENSE.
+
+THIRD PARTY
+-----------
+Galmuri11 (SIL OFL 1.1) is redistributed with this mod. Its licence text ships in
+every release and must stay with it. See THIRD-PARTY.md.

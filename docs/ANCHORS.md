@@ -57,6 +57,7 @@ the game updates.
 | F2 | global fallback | `TMPro.TMP_Settings.fallbackFontAssets : List<TMP_FontAsset>` (public static, get **and set**) | same | `i18n/Font.cs` |
 | F3 | per-font fallback | `TMP_FontAsset.fallbackFontAssetTable : List<TMP_FontAsset>` (public) | Hangul missing on fonts that bypass the global list | `i18n/Font.cs` |
 | F4 | dynamic atlas | `TMP_FontAsset.atlasPopulationMode` = `AtlasPopulationMode.Dynamic` | glyphs never rasterise | `i18n/Font.cs` |
+| F5 | glyph size | `TMP_FontAsset.faceInfo` (`FaceInfo.scale`, settable through the property) | Hangul renders far larger than the game's Latin | `i18n/Font.cs` |
 
 These live in `Unity.TextMeshPro.dll`, which moves with the **Unity version**, not
 with Crux's code. It is the anchor group least likely to break on a game patch and
@@ -82,6 +83,12 @@ player's own machine — a worse look, but not a dead end.
 returned a Galmuri11 asset in `Dynamic` population mode, `TryAddCharacters` added
 300 of 300 Hangul syllables with none missing, and the atlas spilled to a second
 1024×1024 `Alpha8` texture on its own — so F4 and multi-atlas both behave.
+
+F5 is why the patch is legible. `TMP_Text` sizes each glyph as
+`m_currentFontSize / faceInfo.pointSize * faceInfo.scale`, reading `faceInfo` from
+whichever asset supplied that glyph — so setting `scale` on the **fallback** asset,
+and only there, shrinks Korean without touching the game's own text. At 1.0 Hangul
+overflowed buttons; 0.8 matches.
 
 One thing the table cannot express: **F3 must be applied per scene, not once.** Only
 five TMP fonts are loaded at the menu; `monogram-extended SDF` and

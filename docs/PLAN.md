@@ -154,6 +154,12 @@ fallback      TMP_Settings + all 5 loaded TMP fonts
 
 Three things that only running it could tell us:
 
+**Hangul renders too big at 1:1.** TMP sizes every glyph as
+`fontSize / faceInfo.pointSize * faceInfo.scale`, reading those from whichever asset
+supplied the glyph. Hangul fills its em box and Latin does not, so at 1.0 the Korean
+towered over the game's own face and buttons wrapped mid-word. `faceInfo.scale` on
+the fallback asset is the dial; **0.8** is the default and `FontScale` exposes it.
+
 **Multi-atlas spill starts early.** 300 syllables at 48 pt already needed a second
 1024×1024 texture — about 225 glyphs per atlas. A UI that touches 1,500 distinct
 syllables would hold 6–7 atlases, roughly 6–7 MB of `Alpha8`. Acceptable, but
@@ -204,6 +210,30 @@ KR are the fallback if the pixel grid reads badly at the game's sizes.
 M1 existed to answer that before any translation was written. It did, in the
 affirmative, on day one — so the AssetBundle contingency is dropped.
 
+### What the plugin looks like
+
+```
+Plugin.cs      lifecycle and wiring, no decisions
+Anchors.cs     every game type reached by name, at runtime
+Config.cs      MelonPreferences, and where our files live
+Log.cs         one format, and Guard() so a dead patch says so once
+Json.cs        a flat {string: string} reader that refuses what it cannot parse
+i18n/Catalog.cs   key -> Korean
+i18n/Font.cs      the fallback font asset, re-registered per scene
+i18n/Patches.cs   A1 and A3
+i18n/Dump.cs      the English extraction, off unless asked
+```
+
+`Assembly-CSharp` is deliberately **not** a reference. Every game type is reached
+through `Anchors.cs` by name, so an update that renames one method costs a logged
+miss and one dead feature rather than a plugin that will not load at all.
+
+The catalogue takes two kinds of key. Most are the game's own
+`LocalizedStringAsset.Key`. The rest are the **English text itself**, which is what
+covers `_BaseData.Name` falling back to a ScriptableObject's file name — there is no
+key there to look up. A translator who sees stray English adds an entry keyed by
+exactly that English and it is fixed either way.
+
 ### Translators must not glue particles to tokens
 
 Building descriptions are assembled by `Entities.Data/StringProcessor.cs`, and it
@@ -239,8 +269,20 @@ The rules that follow:
 - Token order is close to fixed; noun-stacking reads better here than forcing
   Korean word order and losing a particle
 
-`tools/lint-locale.py` enforces this in CI. A rule this easy to break by hand
-belongs in a linter, not in a style guide nobody re-reads.
+`tools/lint-locale.py` enforces this. A rule this easy to break by hand belongs in a
+linter, not in a style guide nobody re-reads — and it earned its place immediately,
+catching a `[BaseScore].` where the full stop would have vanished silently.
+
+It also encodes the rest of the grammar: `{ }` must balance or bold runs to the end
+of the string, `{0}` arguments must survive, `[Token]` counts must match (order need
+not — tokens resolve by name, which is what makes Korean word order possible at
+all), and `@` line breaks are counted against the English.
+
+Two rules were written wrong first and corrected against the decompiled parser. `@`
+is **not** destructive glued to a word — `StringProcessor` expands it to `" @ "`
+before splitting — and `[{1}]` is a legal token, because `string.Format` fills it in
+before the parser runs. The game's own English breaks the token rule 13 times, so
+those keys are catalogued rather than reported as ours.
 
 ## Cheat
 
@@ -347,11 +389,13 @@ M1  Hangul on screen                                  DONE 2026-09-22
     [x] Resources.LoadAll dump → 1088 keys / 6552 words
     [x] GetText() postfix proven end to end
 
-M2  Translation complete                              next
-    tune samplingPointSize against how the pixel grid reads
-    _BaseData.Name patched · StringLookup verified
-    tools/lint-locale.py in CI
-    Hardcoded TMP text swept with UnityExplorer
+M2  Translation complete                              DONE 2026-09-23
+    [x] src/ plugin: Anchors, Catalog, Font, Patches, Dump, Json, Config, Log
+    [x] tools/lint-locale.py encodes the StringProcessor grammar
+    [x] 1071/1071 translatable strings - names, descriptions, UI
+    [x] _BaseData.Name patched (A3), literal keys for text with no key
+    [x] FontScale 0.8 - Hangul was towering over the game's Latin at 1.0
+    [ ] hardcoded TMP text swept with UnityExplorer
 
 M3  Cheat widget                                      week 3
     IMGUI panel over CheatsHandler + direct writes
