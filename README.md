@@ -3,10 +3,10 @@
 Korean language patch, cheat widget, and autoplay for the Steam roguelike citybuilder
 *Combolands: Roguelike Citybuilder* (Crux Games, AppID 4075620).
 
-> **Status: the language patch works.** Every string the game has is translated and
-> renders in the retail build. The cheat widget and autoplay are not written yet.
-> No game file is modified — the loader and the mod are added beside them and
-> uninstall by deletion.
+> **Status: language patch and cheat widget work.** Every string the game has is
+> translated and renders in the retail build, and the cheat panel is on F8.
+> Autoplay is not written yet. No game file is modified — the loader and the mod are
+> added beside them and uninstall by deletion.
 
 | Document | What it settles |
 |---|---|
@@ -37,6 +37,22 @@ builds a **Galmuri11** font asset from a TTF at runtime, fills its atlas on dema
 and hangs it off every font as a fallback — re-registering on each scene load,
 because two of those fonts only appear with the game scene.
 
+## Cheat widget
+
+**F8.** Gold, score, rerolls, removes, dismisses, rewinds, enchantment; weeks,
+score target, milestone, shop; placement restrictions; the game's own scoring-speed
+flag; and the two permanent guild unlocks, which ask twice because abandoning the
+run will not undo them.
+
+**Using any cheat stops Steam achievements for the rest of the session.** That is
+the default, not a setting to find, because an achievement unlocked by a cheat
+cannot be taken back. `BlockAchievements = false` turns it off, and the panel always
+says which state it is in.
+
+The game also still has Crux's own developer cheats, untouched by this mod: hold
+`RightShift`+`C`+`L` to arm them, then `RightShift` plus `G`, `B`, `W`, `E` and the
+rest. Those do **not** trip the achievement gate — the mod cannot see them.
+
 ## Configuration
 
 `UserData/MelonPreferences.cfg`, written on first run:
@@ -49,6 +65,10 @@ because two of those fonts only appear with the game scene.
 | `FontSamplingPointSize` | `32` | atlas resolution, not rendered size |
 | `FontFile` | `Galmuri11.ttf` | under `UserData/Combolands/fonts` |
 | `DumpStrings` | `false` | developer: write the English out to `generated/` |
+| `Cheats` | `true` | |
+| `WidgetKey` | `F8` | any `UnityEngine.KeyCode` name |
+| `WidgetScale` | `0` | panel scale. 0 derives one from the window height — IMGUI has no DPI awareness |
+| `BlockAchievements` | `true` | stop submitting achievements once any cheat is used |
 
 ## Building
 

@@ -61,6 +61,26 @@ namespace Combolands.Mod
             return m;
         }
 
+        // For methods whose parameter types we do not want to spell out - an enum
+        // from the game assembly, say. Ambiguity is reported rather than guessed at.
+        internal static MethodInfo MethodByName(Type owner, string name, int argCount)
+        {
+            if (owner == null) return null;
+            MethodInfo found = null;
+            foreach (var m in owner.GetMethods(All))
+            {
+                if (m.Name != name || m.GetParameters().Length != argCount) continue;
+                if (found != null)
+                {
+                    Miss("unambiguous method", owner.FullName + "." + name);
+                    return null;
+                }
+                found = m;
+            }
+            if (found == null) Miss("method", owner.FullName + "." + name);
+            return found;
+        }
+
         internal static PropertyInfo Property(Type owner, string name)
         {
             if (owner == null) return null;

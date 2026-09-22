@@ -108,11 +108,25 @@ leaves those two without Hangul.
 | C7 | unlocks | `Progression.UnlockStateController.DebugUnlockAllGuilds()`, `DebugLevelUpAllGuilds()` | unlock cheats | `cheat/Unlocks.cs` |
 | C8 | milestone | `GameState.MilestoneManager.DebugSetCurrentMilestone(int)`, `EndCurrentMilestoneEarly()` | milestone skip | `cheat/Run.cs` |
 | C9 | shop | `GameState.ShopManager.DebugShowShop()` | forcing the shop | `cheat/Run.cs` |
+| C10 | achievement gate | `External.AchievementsHandler.Achieve(Achievement)` (private, 1 arg) | **achievements would submit while cheating** | `cheat/Integrity.cs` |
+| C11 | singleton access | ``Library.MonoSingleton`1`` / ``Library.SerializedMonoSingleton`1`` — `Instance`, `HasInstance` | every cheat, and autoplay's reads | `Singletons.cs` |
+| C12 | click guard | `Library.Utils.UiUtils.IsPointerOverUIObject()` | clicks on the panel also place buildings | `cheat/Widget.cs` |
 
 C1 is a **dependency on a developer oversight**, not on an API, and it works:
 `RightShift`+`C`+`L` arms it in the retail build, and `+G` and `+B` were confirmed
 in game on 2026-09-22. The cheat menu is debug code that shipped; a build that
 strips it takes the keyboard shortcuts with it. The widget is deliberately built on C2–C9 instead, so the loss is cosmetic.
+
+C10 is the only anchor whose failure is **silent and outward-facing**. If `Achieve`
+moves, cheats keep working and Steam keeps receiving achievements — so the miss is
+logged as an error rather than a warning, and it is the one to check first after a
+game update.
+
+C11 is reached generically: static members of a generic type are per constructed
+type, so `MonoSingleton<ScoreController>.Instance` really does reach the live one.
+`HasInstance` is checked first every time, because `Instance` logs a Unity error
+when the singleton is missing and a panel drawn on the main menu would otherwise
+write one error per control per frame.
 
 C5's `ignoreAllPlacementRestrictions` already being an optional parameter is why a
 prefix forcing it true is the whole feature. If that parameter is removed, the

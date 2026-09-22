@@ -308,6 +308,46 @@ This collapses the cheat module from "reverse the economy" to "put a readable UI
 the switches that are already wired". **M0 verifies it in the running game**, because
 the whole estimate rests on it.
 
+### The widget does not use the built-in keys
+
+`CheatsHandler` works and stays as it is — arm it with `RightShift`+`C`+`L` and the
+shipped shortcuts still respond. The widget is deliberately built on **C2–C9**
+instead, so if Crux ever strips their debug code the loss is the keyboard shortcuts
+and nothing else.
+
+Everything writes through the game's own `Change*` methods rather than the backing
+fields behind their private setters. Those methods are what refresh `MoneyPanel`,
+move the milestone bar and raise `MoneyChanged`; a field write leaves the number
+right and the UI wrong, which reads as a broken mod rather than as a cheat. Every
+call passes `withTrigger: false` — `true` would fire the on-gold-earned chain, so a
+"+100 gold" button would silently score points through whatever is on the map.
+
+### Achievements stop the moment you cheat
+
+`AchievementsHandler.Achieve(Achievement)` is the one place the game calls out to
+the platform, so a single prefix covers every achievement it has. The first use of
+any cheat in a session closes that gate.
+
+This is the default rather than a setting a careful player has to find, because the
+failure is one-way: an achievement unlocked by a cheat cannot be taken back, and it
+lands on an account the player keeps long after the run. `BlockAchievements` can
+turn it off, and the panel says plainly which state it is in.
+
+`SpeedUpScoring` is exempt. It skips an animation, changes no outcome, and M6 needs
+it for unattended runs.
+
+### Two things the panel had to learn about its own surroundings
+
+**Clicks fell through.** The game asks `UiUtils.IsPointerOverUIObject()` before
+acting on a click, and that only knows about uGUI — an IMGUI window is invisible to
+it. Every click on the panel also placed a building on the map behind it. A postfix
+that reports the pointer as over UI while it is inside the panel rect fixes it, and
+it is not a trick: while the panel is under the cursor, the pointer *is* over UI.
+
+**IMGUI has no idea what DPI is.** At 3440×1440 the default skin drew the panel
+about a tenth of the screen wide and the text was unreadable. `GUI.matrix` scales
+it, `WidgetScale` overrides, and 0 derives a scale from the window height.
+
 ### What the widget adds
 
 Direct writes, where the built-in keys are too coarse:
@@ -397,9 +437,12 @@ M2  Translation complete                              DONE 2026-09-23
     [x] FontScale 0.8 - Hangul was towering over the game's Latin at 1.0
     [ ] hardcoded TMP text swept with UnityExplorer
 
-M3  Cheat widget                                      week 3
-    IMGUI panel over CheatsHandler + direct writes
-    MelonPreferences config · achievement-safety decision
+M3  Cheat widget                                      DONE 2026-09-23
+    [x] IMGUI panel on F8, over ScoreController/GameController/etc directly
+    [x] achievement gate: one prefix on AchievementsHandler.Achieve
+    [x] build-anywhere via the game's own ignoreAllPlacementRestrictions
+    [x] panel clicks no longer fall through to the map
+    [x] DPI scaling - IMGUI is unreadable above 1080p untouched
 
 M4  Play helper (stage 1)                             week 4
     Board reader · valuation · overlay

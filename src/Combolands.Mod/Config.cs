@@ -17,6 +17,11 @@ namespace Combolands.Mod
         private static MelonPreferences_Entry<float> _fontScale;
         private static MelonPreferences_Entry<bool> _dumpStrings;
 
+        private static MelonPreferences_Entry<bool> _cheats;
+        private static MelonPreferences_Entry<string> _widgetKey;
+        private static MelonPreferences_Entry<bool> _blockAchievements;
+        private static MelonPreferences_Entry<float> _widgetScale;
+
         internal static void Load()
         {
             _cat = MelonPreferences.CreateCategory("Combolands", "Combolands Mod");
@@ -42,6 +47,23 @@ namespace Combolands.Mod
             _fontScale = _cat.CreateEntry("FontScale", 0.8f,
                 description: "Korean glyph size relative to the game's own font. 1.0 leaves it alone.");
 
+            _cheats = _cat.CreateEntry("Cheats", true,
+                description: "Enable the cheat widget.");
+            _widgetKey = _cat.CreateEntry("WidgetKey", "F8",
+                description: "Key that opens the cheat widget. Any UnityEngine.KeyCode name.");
+
+            // Default on, and deliberately not phrased as a nanny setting: an
+            // achievement unlocked by a cheat cannot be taken back, and it lands on
+            // an account the player keeps long after this run.
+            _blockAchievements = _cat.CreateEntry("BlockAchievements", true,
+                description: "Stop submitting Steam achievements once any cheat is used this session.");
+
+            // IMGUI draws in pixels with no notion of DPI, so the default skin is
+            // unreadable on anything above 1080p - on a 1440p ultrawide the panel is
+            // about a tenth of the screen. 0 derives a scale from the window height.
+            _widgetScale = _cat.CreateEntry("WidgetScale", 0f,
+                description: "Cheat widget scale. 0 picks one from the window height.");
+
             _dumpStrings = _cat.CreateEntry("DumpStrings", false,
                 description: "Developer: write every LocalizedStringAsset to generated/strings.en.json on first scene.");
 
@@ -57,6 +79,41 @@ namespace Combolands.Mod
         internal static string FontFile { get { return _fontFile.Value; } }
         internal static float FontScale { get { return _fontScale.Value; } }
         internal static bool DumpStrings { get { return _dumpStrings.Value; } }
+
+        internal static bool Cheats { get { return _cheats.Value; } }
+        internal static bool BlockAchievements { get { return _blockAchievements.Value; } }
+
+        internal static float WidgetScale
+        {
+            get
+            {
+                var configured = _widgetScale.Value;
+                if (configured > 0.01f) return configured;
+                return Mathf.Clamp(Screen.height / 720f, 1f, 3f);
+            }
+        }
+
+        // Parsed once. A typo falls back to F8 with a warning rather than leaving the
+        // widget unreachable and unexplained.
+        private static KeyCode _parsedKey = KeyCode.None;
+
+        internal static KeyCode WidgetKey
+        {
+            get
+            {
+                if (_parsedKey != KeyCode.None) return _parsedKey;
+                try
+                {
+                    _parsedKey = (KeyCode)System.Enum.Parse(typeof(KeyCode), _widgetKey.Value, true);
+                }
+                catch
+                {
+                    Log.Warn("config", "WidgetKey '" + _widgetKey.Value + "' is not a KeyCode; using F8");
+                    _parsedKey = KeyCode.F8;
+                }
+                return _parsedKey;
+            }
+        }
 
         // Application.dataPath is <game>/Combolands_Data, so its parent is the install.
         internal static string GameDir

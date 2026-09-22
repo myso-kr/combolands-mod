@@ -3,9 +3,10 @@
 using HarmonyInstance = HarmonyLib.Harmony;
 using MelonLoader;
 using Combolands.Mod;
+using Combolands.Mod.Cheat;
 using Combolands.Mod.I18n;
 
-[assembly: MelonInfo(typeof(Plugin), "Combolands Mod", "0.1.0", "myso-kr",
+[assembly: MelonInfo(typeof(Plugin), "Combolands Mod", "0.2.0", "myso-kr",
     "https://github.com/myso-kr/combolands-mod")]
 [assembly: MelonGame("Crux Games", "Combolands")]
 
@@ -27,28 +28,59 @@ namespace Combolands.Mod
                 return;
             }
 
-            if (!Config.Translate)
+            if (Config.Translate)
+            {
+                // Order matters exactly once: the font has to exist before the first
+                // string is drawn, or the first frame of the menu is tofu.
+                Log.Guard("font", Font.Create);
+                Catalog.Load(Config.Language);
+                Log.Guard("i18n", () => Patches.Apply(Patcher));
+            }
+            else
             {
                 Log.Info("plugin", "translation disabled by config");
-                return;
             }
 
-            // Order matters exactly once: the font has to exist before the first
-            // string is drawn, or the first frame of the menu is tofu.
-            Log.Guard("font", Font.Create);
-            Catalog.Load(Config.Language);
-            Log.Guard("i18n", () => Patches.Apply(Patcher));
+            if (Config.Cheats)
+            {
+                // The achievement gate goes in first. A cheat that ran before it was
+                // installed would be a cheat the gate never saw.
+                Log.Guard("cheat.integrity", () => Integrity.Apply(Patcher));
+                Log.Guard("cheat.build", () => Build.Apply(Patcher));
+                Log.Guard("cheat.widget", () => Widget.Apply(Patcher));
+                Log.Info("cheat", "widget ready on " + Config.WidgetKey);
+            }
+            else
+            {
+                Log.Info("plugin", "cheats disabled by config");
+            }
         }
 
         public override void OnSceneWasInitialized(int buildIndex, string sceneName)
         {
             // Not once at startup: two of the game's fonts only load with the game
             // scene. See Font.RegisterWithLoadedFonts.
-            Log.Guard("font.scene", Font.RegisterWithLoadedFonts);
+            if (Config.Translate)
+                Log.Guard("font.scene", Font.RegisterWithLoadedFonts);
+
+            // Placement rules are per-run state, and a new scene is a new run. Left
+            // on across one, a building could end up where the game will not re-derive
+            // it on load - and the save is written from the map.
+            Build.Reset();
 
             if (_dumped || !Config.DumpStrings) return;
             _dumped = true;
             Log.Guard("dump", Dump.Run);
+        }
+
+        public override void OnUpdate()
+        {
+            if (Config.Cheats) Log.Guard("cheat.input", Widget.Update);
+        }
+
+        public override void OnGUI()
+        {
+            if (Config.Cheats) Log.Guard("cheat.draw", Widget.Draw);
         }
     }
 }
