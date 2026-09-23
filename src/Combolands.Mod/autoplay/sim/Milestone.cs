@@ -16,10 +16,11 @@ namespace Combolands.Mod.Autoplay.Sim
     // it is what the trainer optimises against: an episode here is one milestone, and
     // the reward is whether the target was actually cleared.
     //
-    // Blueprints are the exception and are not modelled: placing one does NOT end the
-    // turn. They make a run better in a way this simulation calls zero, so a plan
-    // built here is a lower bound on what the real run can do - which is the safe
-    // direction for a target you have to clear.
+    // Blueprints are the exception, and they are modelled: placing one does NOT end
+    // the turn. `PlacingBuilding` jumps straight past `EndTurn` for a consumable, so
+    // a blueprint is a free building - the same board, the same scoring, one fewer
+    // week spent. A milestone with three blueprints in hand is three placements ahead
+    // of one without, and a planner that valued them at zero would hold them.
     internal sealed class Milestone
     {
         internal readonly Rules Rules;
@@ -34,6 +35,11 @@ namespace Combolands.Mod.Autoplay.Sim
         internal readonly int[] Pool;
 
         internal int OffersPerWeek = 3;
+
+        // Blueprint placements in hand. Each is a building placed without ending the
+        // turn - the one way to get ahead of the week count - and the loop spends
+        // them rather than hoarding, which is what Items.ShouldSpend decides in game.
+        internal int Blueprints;
 
         internal Milestone(Rules rules, Map map, long required, int weeks, int[] pool)
         {
@@ -83,6 +89,18 @@ namespace Combolands.Mod.Autoplay.Sim
                 outcome.WeeksUsed = week + 1;
 
                 Draw(offers, random);
+
+                // Free placements first. A blueprint spent before the week's real
+                // building is a blueprint the real building can be placed next to.
+                while (Blueprints > 0)
+                {
+                    int bt, bx, by;
+                    if (!Choose(policy, offers, (long)score, week, lastWeek, out bt, out bx, out by)) break;
+
+                    Map.Place(bt, bx, by);
+                    outcome.Placements++;
+                    Blueprints--;
+                }
 
                 int tag, x, y;
                 if (Choose(policy, offers, (long)score, week, lastWeek, out tag, out x, out y))

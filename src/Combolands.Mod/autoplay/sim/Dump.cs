@@ -91,6 +91,21 @@ namespace Combolands.Mod.Autoplay.Sim
             Log.Info("sim", string.Format("read {0} buildings - {1} exact, {2} approximate, {3} unreadable",
                 pieces.Count, exact, approximate, unknown));
 
+            // The activator list is the one thing here that is not read out of the
+            // game, so it is the one thing that can rot without anything noticing. A
+            // name that no longer exists means a building was renamed or removed and
+            // its cascade is now being valued at nothing - which is safe, but silent,
+            // and silence is what this whole file is written to avoid.
+            var missing = new List<string>();
+            foreach (var name in Activators)
+                if (!_seen.Contains(name)) missing.Add(name);
+
+            if (missing.Count > 0)
+                Log.Warn("sim", "these activators are no longer in the game and are no longer modelled: "
+                    + string.Join(", ", missing.ToArray())
+                    + " - see docs/ANCHORS.md row M7");
+
+            _seen.Clear();
             return Document(pieces, categories, tileTypes);
         }
 
@@ -162,11 +177,27 @@ namespace Combolands.Mod.Autoplay.Sim
             text.Append(", \"tileTypes\": ").Append(Placeable(members, behaviour, tagValue, tileTypes));
             text.Append(", \"sameTypeRestricted\": ").Append(Restricted(members, behaviour) ? "true" : "false");
 
+            // Activation. The count and whether it can BE activated are fields; that
+            // it activates OTHERS is not expressible as data - the game says it by
+            // calling AddOnActivatedTrigger - so it comes from the list below.
+            var name = tagValue.ToString();
+            _seen.Add(name);
+            var activates = Activators.Contains(name);
+            text.Append(", \"activationCount\": ").Append(Int(members.ActivationCount, behaviour)
+                                                            .ToString(CultureInfo.InvariantCulture));
+            text.Append(", \"canBeActivated\": ").Append(Flag(members.CanBeActivated, behaviour) ? "true" : "false");
+            text.Append(", \"activates\": ").Append(activates ? "true" : "false");
+
             // A self score that cannot be read without a live building is a score
             // this simulator cannot know - Shrine pays 50 per reroll held. The piece
             // is still worth modelling for what it scores off its neighbours.
             var fidelity = Judge(members, behaviour, reach);
             if (self == null && reach == "SelfOnly") fidelity = Fidelity.Approximate;
+
+            // An activator is modelled as an EXPECTATION over a random choice, which
+            // is the right quantity and is not the same as reproducing it. Marking it
+            // exact would be claiming more than the simulator delivers.
+            if (activates) fidelity = Fidelity.Approximate;
 
             // A building with targets, a range and NO preview mode still scores - it
             // just does not offer the game a preview. Woodcutter is the plain case:
@@ -191,6 +222,42 @@ namespace Combolands.Mod.Autoplay.Sim
             text.Append('}');
 
             return new Entry { Text = text.ToString(), Fidelity = fidelity };
+        }
+
+        // The buildings that activate their neighbours.
+        //
+        // This is the one thing in the dump that is not read out of the game, because
+        // the game does not record it anywhere a reader can reach: a behaviour
+        // activates by CALLING `TriggerController.AddOnActivatedTrigger` from its
+        // `Activate` override. No field says so and no signature implies it.
+        //
+        // So it is a list, read out of the game's code on 2026-09-23 against game
+        // v1.0.6, and it is the kind of dependency that has to be re-read after an
+        // update rather than tested - docs/ANCHORS.md row M7 says so. Every name here
+        // is checked to exist at dump time; a renamed building is reported rather
+        // than silently dropped.
+        //
+        // Being wrong in the two directions costs differently. A building missing
+        // from this list is under-valued, which is safe. A building wrongly on it is
+        // over-valued, which is the direction that makes a milestone plan miss - so
+        // when in doubt it is left off.
+        private static readonly HashSet<string> Activators = new HashSet<string>(StringComparer.Ordinal)
+        {
+            "Ballista", "BanditCamp", "Brewery", "Conduit", "EffigyPyre", "FaerieRing",
+            "FishTrap", "GuardTower", "Harvester", "HerbGarden", "Marketplace", "Outpost",
+            "PostOffice", "Sawmill", "SparringYard", "Trawler", "Treasury", "WayStation",
+        };
+
+        // Every building name the dump walked past, so the activator list can be
+        // held to the game rather than trusted.
+        private static readonly HashSet<string> _seen = new HashSet<string>(StringComparer.Ordinal);
+
+        private static bool Flag(FieldInfo field, object owner)
+        {
+            if (field == null) return false;
+
+            var value = Quietly(() => field.GetValue(owner));
+            return value is bool && (bool)value;
         }
 
         // Whether this building is one the simulator reproduces exactly.
@@ -465,6 +532,7 @@ namespace Combolands.Mod.Autoplay.Sim
         private sealed class Members
         {
             internal readonly FieldInfo Range, Major, Minors, PreviewMode, Cooldown;
+            internal readonly FieldInfo ActivationCount, CanBeActivated;
 
             // Resolved from the first TargetCategory actually seen, because the type
             // lives in the game assembly and naming it here would be one more anchor
@@ -496,6 +564,8 @@ namespace Combolands.Mod.Autoplay.Sim
                 Minors = Reflect.Field(type, "_minorCategories");
                 PreviewMode = Reflect.Field(type, "_scorePreviewMode");
                 Cooldown = Reflect.Field(type, "_cooldownParam");
+                ActivationCount = Reflect.Field(type, "_activationCount");
+                CanBeActivated = Reflect.Field(type, "_canBeActivated");
                 PreviewModeType = PreviewMode == null ? null : PreviewMode.FieldType;
 
                 bool ambiguous;

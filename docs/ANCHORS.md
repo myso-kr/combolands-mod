@@ -232,6 +232,8 @@ saying so.
 | M4 | what it pays for | `GetBehaviourTargetTags()` · `GetBehaviourTargetCategories()` · `GetBehaviourTargetRarities()` · `GetBehaviourTargetTileTypes()` · `GetScoreForTag` · `GetScoreForRarity` · `GetScoreForTileType` · `GetScoreParam` | **the dump is empty and the helper falls back** | `autoplay/sim/Dump.cs` |
 | M5 | the multiplier | `Entities.GamePiece.Multiplier` | a levelled board is valued as a fresh one | `autoplay/Board.cs` |
 | M6 | the same-type rule, statically | `_BuildingBehaviour._hasRangePlacementRestriction` (protected FIELD, not the method) | the simulator proposes tiles the game refuses | `autoplay/sim/Dump.cs` |
+| M7 | activation | `_GamePieceBehaviour._activationCount` · `_canBeActivated` (protected fields) | trigger cascades are valued at nothing | `autoplay/sim/Dump.cs` |
+| M8 | which buildings activate | the eighteen behaviours that call `TriggerController.AddOnActivatedTrigger` — *observed*, a list read from the game's code | same, silently | `autoplay/sim/Dump.cs` |
 
 M1 is the anchor this whole feature rests on, and it is the one no probe can defend.
 `GetScorePreview` is *reproduced* in `sim/Preview.cs`, not called - calling it would
@@ -253,6 +255,18 @@ This is the same trap as P12 and it was fallen into the same way.
 an exemption granted by run state — an equipped Fishing Net, an adjacent Plaza — so
 calling it with no building to ask about both throws and would have answered about a
 run rather than about a building. M6 reads the field.
+
+**M8 is the only thing in the dump not read out of the game**, because the game does
+not record it anywhere a reader can reach: a behaviour activates its neighbours by
+*calling* `AddOnActivatedTrigger` from its `Activate` override. No field says so and
+no signature implies it. So it is a list of eighteen names, read out of the game's
+code on 2026-09-23 against v1.0.6, and the dump checks every name still exists —
+a renamed building is reported rather than silently dropped.
+
+Being wrong about it costs differently in each direction. A building missing from
+the list is valued at nothing extra, which is safe. A building wrongly on it is
+over-valued, which is the direction that makes a milestone plan miss — so when in
+doubt it is left off.
 
 **Some buildings score without offering a preview.** Woodcutter pays eighty a tree
 over range two and sets no `_scorePreviewMode`, because it pays on a cooldown rather

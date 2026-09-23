@@ -57,13 +57,75 @@ game.
 rarity match, and a tile pays at most once. A building that is both a named target
 and a member of a targeted category pays once, at the tag rate.
 
+## Two things a placement is worth beyond its own score
+
+**Blueprints are placements that cost no week.** `PlacingBuilding` jumps straight
+past `EndTurn` for a consumable, so a blueprint is a free building — the same board,
+the same scoring, one fewer week spent. A milestone with three blueprints in hand is
+three placements ahead of one without, and a planner that valued them at zero would
+hold them.
+
+**Activation is most of what eighteen buildings are for.** They wake their
+neighbours, and a woken building scores again out of turn *ignoring its own
+cooldown* — which is precisely why they are worth building around. The game's shape
+is always the same: collect what is activatable in reach, drop yourself and whoever
+woke you, then take some of the rest.
+
+"Some" turns out to be two different rules, and the difference is the activation
+count:
+
+| count | what happens | who |
+|---|---|---|
+| more than zero | that many, **chosen at random** | Conduit takes two, Sawmill one |
+| zero | **all of them** | FishTrap wakes every Fishing building in range, EffigyPyre everything adjacent |
+
+Eight of the eighteen are the second kind, and reading their zero as "activates
+nothing" valued them all at nought — which is what the first version of this did.
+
+The random half is why the simulator takes an **expectation** rather than sampling.
+A candidate is chosen with probability `min(count, n) / n`, and the expected extra
+is that times what it scores. Over a ten-week milestone the expectation is the right
+quantity; one sampled outcome would be noise dressed as precision.
+
+An activator that declares target categories wakes only those — Sawmill wakes
+Engineering and Manufacturers, Marketplace wakes Stalls. One that declares none
+wakes anything. Leaving that filter out would over-value exactly the buildings that
+are fussiest about what they sit beside, and over-valuing is the direction that
+makes a plan miss.
+
+Cascades are followed two deep. The game has no depth limit; two is a statement
+about diminishing returns rather than about the game, since each step multiplies the
+cost by the number of candidates and divides the expected value by roughly the same.
+It also cannot loop, where the game's own guard — excluding whoever woke you — only
+stops cycles of length two.
+
+## Room is a modifier, not a value
+
+Worth recording because it was got wrong twice in the same way.
+
+Elbow room started as an independent quantity in points, scaled by what the
+milestone still needed per week. On any milestone with a large target that term
+swamped the points term completely: the planner built for empty space, scored
+nothing, and because scoring nothing kept the board's own rate at zero, it never
+recovered. Rescaling it against the board's rate instead had the identical failure
+whenever that rate was still zero.
+
+Both were fixing a scale when the error was the shape. What elbow room is worth is
+"this placement is good **and** it extends" — a modifier on a value, not a value. It
+multiplies now, so zero points with room beside it is worth zero, which is also the
+right answer: space next to nothing is nothing. On an empty board the one-ply
+lookahead is what discriminates, and that is in points already.
+
+A blueprint test found it: three free buildings scored exactly as much as none,
+because all of them went somewhere empty.
+
 ## How faithful it is
 
 The rule set is dumped from a running game once, into `generated/rules.json`, which
 is **not** committed — it is derived from the game, like the string dumps, and
 anyone with a copy can make it again.
 
-Of 167 buildings, **154 are reproduced exactly** and 13 are marked `approximate`,
+Of 167 buildings, **137 are reproduced exactly** and 30 are marked `approximate`,
 which means one of:
 
 - the behaviour overrides `GetScorePreview` and has its own idea of what it scores
@@ -71,6 +133,8 @@ which means one of:
   which has no static value
 - it scores without declaring a preview mode, so the reach was **inferred** from its
   range and targets and the piece carries `reachInferred`
+- it activates its neighbours, which is modelled as an expectation over a random
+  choice — the right quantity, and not the same as reproducing it
 
 An approximate piece is still modelled and its score is still a lower bound. Saying
 which is which is the difference between a simulator and a guess in a simulator's
@@ -78,7 +142,14 @@ clothes. A piece that could not be read at all scores zero, which is the safe
 direction: the planner under-rates it rather than building a milestone plan around a
 building it does not understand.
 
-`docs/ANCHORS.md` rows M1–M6 are what the dump reads. **M1 is the one no test can
+`docs/ANCHORS.md` rows M1–M8 are what the dump reads. **M8 is the only one not read
+out of the game at all**: a behaviour activates by *calling*
+`AddOnActivatedTrigger`, which no field records and no signature implies, so the
+dumper carries a list of eighteen names and checks at dump time that each still
+exists. A building missing from that list is valued at nothing extra, which is safe;
+one wrongly on it is over-valued, which is not — so when in doubt it is left off.
+
+ **M1 is the one no test can
 defend**: `GetScorePreview` is *reproduced* in `sim/Preview.cs`, not called, because
 calling it needs a live building on a live tile. It can keep its name, change its
 arithmetic, and every check will pass while every number the helper prints is

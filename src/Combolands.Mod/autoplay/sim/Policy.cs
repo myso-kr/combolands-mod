@@ -116,9 +116,22 @@ namespace Combolands.Mod.Autoplay.Sim
             features.Potential = Evaluate.Potential(rules, map, tag, x, y, available)
                                * Math.Max(0, weeks - 1);
 
-            // Priced in weeks of the run's own quota, so it stays a tiebreaker on a
-            // board paying thousands and on one paying tens.
-            features.Room = Room(map, x, y, 2) * situation.NeededPerWeek;
+            // Room MULTIPLIES what a tile is worth; it does not add to it.
+            //
+            // This was an independent points quantity twice, and both scalings were
+            // wrong in the same way. Priced off the milestone quota it swamped the
+            // points term whenever the target was large, and the planner built for
+            // empty space and scored nothing - which then kept the board's own rate
+            // at zero, so it never recovered. Priced off the board's rate it had the
+            // same failure whenever that rate was still zero.
+            //
+            // Both were fixing a scale when the error was the shape. What elbow room
+            // is worth is "this placement is good AND it extends" - a modifier on a
+            // value, not a value. Zero points with room beside it is worth zero,
+            // which is also the right answer: space next to nothing is nothing. On an
+            // empty board the lookahead is what discriminates, and it is in points
+            // already.
+            features.Room = (Room(map, x, y, 2) / 12.0) * Math.Abs(features.Now);
 
             features.Urgency = situation.Urgency;
             return features;
@@ -231,6 +244,7 @@ namespace Combolands.Mod.Autoplay.Sim
         internal static Situation From(long score, long required, int weeksLeft, double lastWeek)
         {
             var situation = new Situation { Score = score, Required = required, WeeksLeft = weeksLeft };
+
 
             if (situation.Remaining <= 0) { situation.Urgency = 0f; return situation; }
             if (weeksLeft <= 0) { situation.Urgency = 1f; return situation; }

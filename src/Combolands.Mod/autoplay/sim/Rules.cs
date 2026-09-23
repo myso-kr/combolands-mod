@@ -33,6 +33,33 @@ namespace Combolands.Mod.Autoplay.Sim
         // marked, rather than silently dropped or silently invented.
         public bool ReachInferred;
 
+        // --- activation -------------------------------------------------------------
+        //
+        // Eighteen buildings in the game activate their neighbours, and an activated
+        // building scores again out of turn, ignoring its own cooldown. That is the
+        // trigger cascade the plan document once said could not be evaluated without
+        // committing to it - and most of it can, because the shape is always the
+        // same: collect what is activatable in reach, drop yourself and whoever
+        // activated you, then pick `ActivationCount` of them AT RANDOM.
+        //
+        // Random selection is why this is an expectation rather than a simulation. A
+        // candidate is chosen with probability min(count, candidates) / candidates,
+        // and the expected extra score is that probability times what it scores. Over
+        // a ten-week milestone an expectation is the right quantity; a single sampled
+        // outcome would be noise dressed as precision.
+
+        // How many neighbours it activates each time it fires. Zero for the great
+        // majority, which is what makes this cheap.
+        public int ActivationCount;
+
+        // Whether it can BE activated. An activator skips anything that says no.
+        public bool CanBeActivated;
+
+        // Whether it activates others. Not derivable from any field - the game says
+        // it by calling AddOnActivatedTrigger in code - so it comes from a list the
+        // dumper carries. See docs/ANCHORS.md row M7.
+        public bool Activates;
+
         // Adjacent, InRange or SelfOnly - and it is ONE of them, not a mixture. This
         // is the field the old heuristic did not have: it counted a target that was
         // in range OR adjacent, for every building, which overstated every
@@ -190,6 +217,9 @@ namespace Combolands.Mod.Autoplay.Sim
                 Range = Number(entry["range"]),
                 Cooldown = Math.Max(1, Number(entry["cooldown"])),
                 ReachInferred = entry["reachInferred"] != null && entry["reachInferred"].AsBool(),
+                ActivationCount = Number(entry["activationCount"]),
+                CanBeActivated = entry["canBeActivated"] != null && entry["canBeActivated"].AsBool(),
+                Activates = entry["activates"] != null && entry["activates"].AsBool(),
                 SelfScore = Number(entry["selfScore"]),
                 SameTypeRestricted = entry["sameTypeRestricted"] != null
                                   && entry["sameTypeRestricted"].AsBool(),

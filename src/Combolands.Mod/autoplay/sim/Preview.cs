@@ -96,12 +96,120 @@ namespace Combolands.Mod.Autoplay.Sim
         // be a worse lie than the fraction.
         internal static double PerWeek(Rules rules, Map map, int index)
         {
-            var scored = Scored(rules, map, index);
-            if (scored == 0) return 0;
-
             var piece = rules.Get(map.At(index).Tag);
             var cooldown = piece == null ? 1 : Math.Max(1, piece.Cooldown);
-            return (double)scored / cooldown;
+
+            var own = (double)Scored(rules, map, index) / cooldown;
+
+            // What it makes its neighbours do, which for eighteen buildings is most
+            // of what they are for. Also amortised: an activator on a three-week
+            // cooldown sets off its cascade every third week.
+            if (piece == null || !piece.Activates) return own;
+
+            return own + Cascade(rules, map, index, Depth) / cooldown;
+        }
+
+        // How far a cascade is followed.
+        //
+        // Two is not a guess about the game, which has no depth limit - it is a
+        // statement about diminishing returns. Each step multiplies the cost by the
+        // number of candidates and divides the expected value by roughly the same, so
+        // the third step costs as much as the first two and moves the answer by
+        // percent. A bounded cascade also cannot loop, and the game's own guard
+        // against that - excluding whoever activated you - only stops cycles of
+        // length two.
+        private const int Depth = 2;
+
+        // The expected score an activator sets off, one fire.
+        //
+        // The game collects everything activatable in reach, removes itself and its
+        // own trigger source, then picks `ActivationCount` of them at random. So each
+        // candidate is chosen with probability min(count, n) / n, and what it pays is
+        // its full score - activation ignores the cooldown, which is exactly why
+        // activators are worth building around.
+        private static double Cascade(Rules rules, Map map, int index, int depth)
+        {
+            if (depth <= 0) return 0;
+
+            var piece = rules.Get(map.At(index).Tag);
+            if (piece == null || !piece.Activates) return 0;
+
+            var candidates = Candidates(rules, map, index);
+            if (candidates.Count == 0) return 0;
+
+            // Two shapes, and the count is which. An activator with a count picks
+            // that many at random - Conduit takes two, Sawmill one. An activator with
+            // NO count activates everything that qualifies: FishTrap wakes every
+            // Fishing building in range, EffigyPyre everything adjacent to it. Eight
+            // of the eighteen work that way, and reading their zero as "activates
+            // nothing" valued them all at nought.
+            var chance = piece.ActivationCount <= 0
+                ? 1.0
+                : Math.Min(piece.ActivationCount, candidates.Count) / (double)candidates.Count;
+
+            double expected = 0;
+            for (int i = 0; i < candidates.Count; i++)
+            {
+                var target = candidates[i];
+
+                // Full score, not the weekly rate: being activated IS the extra fire.
+                expected += chance * Scored(rules, map, target);
+
+                // And if what it woke is an activator too, that one fires as well.
+                expected += chance * Cascade(rules, map, target, depth - 1);
+            }
+
+            return expected;
+        }
+
+        // Activatable pieces inside the activator's own reach. The game's activators
+        // use their own range or adjacency to decide who is near enough, and which of
+        // the two is the same question `Reach` already answers.
+        private static List<int> Candidates(Rules rules, Map map, int index)
+        {
+            var found = new List<int>(8);
+            var placed = map.At(index);
+            var piece = rules.Get(placed.Tag);
+
+            Action<int, int> look = (x, y) =>
+            {
+                var occupant = map.OccupantAt(x, y);
+                if (occupant < 0 || occupant == index) return;
+
+                var other = rules.Get(map.At(occupant).Tag);
+                if (other == null || !other.CanBeActivated) return;
+
+                // An activator that declares target categories wakes only those.
+                // FishTrap wakes Fishing, Marketplace wakes Stalls, Sawmill wakes
+                // Engineering and Manufacturers. One that declares none - Conduit,
+                // GuardTower, EffigyPyre - wakes anything. Leaving the filter out
+                // would over-value exactly the buildings that are fussiest about
+                // what they sit next to.
+                if (piece.CategoryScores.Count > 0 && !Shares(piece, other)) return;
+
+                found.Add(occupant);
+            };
+
+            if (piece.Reach == Reach.Adjacent)
+            {
+                for (int i = 0; i < Map.AdjacentDX.Length; i++)
+                    look(placed.X + Map.AdjacentDX[i], placed.Y + Map.AdjacentDY[i]);
+            }
+            else
+            {
+                // Range, including for a SelfOnly scorer: how far it SCORES and how
+                // far it REACHES to wake something are different questions, and the
+                // range is the honest answer to the second.
+                var r = Math.Max(1, piece.Range);
+                for (int dy = -r; dy <= r; dy++)
+                    for (int dx = -r; dx <= r; dx++)
+                    {
+                        if (!Map.InRange(dx, dy, r)) continue;
+                        look(placed.X + dx, placed.Y + dy);
+                    }
+            }
+
+            return found;
         }
 
         // Every building on the board, which is one week.
@@ -172,6 +280,13 @@ namespace Combolands.Mod.Autoplay.Sim
 
             paid[key] = score;
             total += score;
+        }
+
+        private static bool Shares(Piece activator, Piece target)
+        {
+            for (int i = 0; i < target.Categories.Length; i++)
+                if (activator.CategoryScores.ContainsKey(target.Categories[i])) return true;
+            return false;
         }
 
         // The planner calls Raw tens of thousands of times a plan and throws the tile

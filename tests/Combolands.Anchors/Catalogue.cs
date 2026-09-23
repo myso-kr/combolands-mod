@@ -492,6 +492,28 @@ namespace Combolands.Anchors
                 Members = new[] { Member.Field("_hasRangePlacementRestriction") },
             },
 
+            new Anchor
+            {
+                Id = "M7", What = "activation",
+                Type = Behaviour,
+                Members = new[]
+                {
+                    Member.Field("_activationCount"),
+                    Member.Field("_canBeActivated"),
+                },
+            },
+            new Anchor
+            {
+                Id = "M8", What = "which buildings activate",
+                Type = Behaviour,
+                Bound = false,
+                // A behaviour activates by CALLING AddOnActivatedTrigger from its
+                // Activate override. No field says so and no signature implies it, so
+                // the dumper carries a list of names - and checks at dump time that
+                // each still exists, which is the only guard available.
+                Why = "a list read from the game's code, not from its data - the dump reports names that vanish",
+            },
+
             // --- autoplay's screens -----------------------------------------------
 
             new Anchor
