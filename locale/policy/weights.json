@@ -1,8 +1,0 @@
-{
-  "_comment": "Fitted by tools/train against simulated milestones. The points term is fixed at 1 and these are priced against it.",
-  "potentialFlat": 0.22142,
-  "potentialUrgent": -0.73189,
-  "roomFlat": 0.26626,
-  "roomUrgent": -0.10001,
-  "rerollBelow": 0.29959
-}

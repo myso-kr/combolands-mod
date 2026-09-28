@@ -109,25 +109,45 @@ namespace Combolands.Train
             Console.WriteLine("  difference:   {0:+0.0%;-0.0%;none} cleared, {1:+0.0%;-0.0%;none} margin",
                 heldFinal.ClearRate - heldBase.ClearRate, heldFinal.Margin - heldBase.Margin);
 
-            // Refusing to write a policy that is worse than the one already shipped is
-            // the whole safety net here, and it is judged on the HELD-OUT milestones.
-            // Training is stochastic, a bad seed is a real outcome, and a policy that
-            // only looks better on the scenarios it was fitted to has learned their
-            // quirks rather than the game. Either way, overwriting good weights would
-            // be a silent regression that surfaces days later as a missed milestone.
-            if (heldFinal.Score < heldBase.Score)
+            // The bar is "meaningfully better", not "not worse".
+            //
+            // Judged on the HELD-OUT milestones, because a policy that only looks
+            // better on the scenarios it was fitted to has learned their quirks
+            // rather than the game. But "not worse" is too low a bar on its own: a
+            // run once tied on clears and won by a tenth of a point of margin - noise
+            // across a hundred and fifty episodes - and that was enough to overwrite
+            // the shipped weights with a vector fitted to quirks.
+            //
+            // So an improvement has to be visible: at least one more milestone
+            // cleared, or at least a point of margin. Anything smaller is not a
+            // result, and shipping it would be a silent regression that surfaces days
+            // later as a missed milestone.
+            var moreCleared = heldFinal.Cleared - heldBase.Cleared;
+            var betterMargin = heldFinal.Margin - heldBase.Margin;
+
+            if (moreCleared < 1 && betterMargin < 0.01)
             {
                 Console.Error.WriteLine(
-                    "\nOn milestones it was not fitted to, the fitted policy is no better than\n" +
-                    "the hand-written one. Nothing was written - that is overfitting, not\n" +
-                    "improvement. Try more episodes, or accept that the shape is already right.");
+                    "\nOn milestones it was not fitted to, the fitted policy is not meaningfully\n" +
+                    "better than the hand-written one - " + moreCleared + " more cleared, "
+                    + betterMargin.ToString("+0.0%;-0.0%;no", CultureInfo.InvariantCulture) + " margin.\n" +
+                    "Nothing was written. Either the search found the training scenarios'\n" +
+                    "quirks, or the shape is already right and there is nothing to fit.");
                 return 1;
             }
 
-            var output = options.Output ?? Path.Combine(Repo(), "locale", "policy", "weights.json");
+            // Written where nothing sweeps it up.
+            //
+            // The default used to be the shipped path, and a `git add -A` duly
+            // committed a vector that a four-policy smoke run had produced. Shipping
+            // a policy should be a deliberate act, so the trainer writes into
+            // `generated/`, which is not committed, and says what to do next.
+            var output = options.Output ?? Path.Combine(Repo(), "generated", "policy.json");
             Directory.CreateDirectory(Path.GetDirectoryName(output));
             File.WriteAllText(output, best.ToJson());
+
             Console.WriteLine("\nwrote {0}", output);
+            Console.WriteLine("to ship it:  cp generated/policy.json locale/policy/weights.json");
 
             return 0;
         }
@@ -327,7 +347,8 @@ namespace Combolands.Train
                                 "  --seed N          makes a run reproducible\n" +
                                 "  --spread F        initial standard deviation (default 0.6)\n" +
                                 "  --rules PATH      the dumped rule set\n" +
-                                "  --out PATH        where to write the fitted weights");
+                                "  --out PATH        where to write the fitted weights\n" +
+                                "                    (default generated/policy.json, which is not committed)");
                             return null;
                         default:
                             Console.Error.WriteLine("unknown option " + name);

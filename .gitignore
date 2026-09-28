@@ -41,3 +41,7 @@ docs/.jekyll-metadata
 # string dumps above: anyone with a copy of the game can make it again. The trainer
 # reads it; what the trainer PRODUCES (policy/weights.json) is ours and is committed.
 generated/rules.json
+
+# The trainer writes here. A fitted policy is shipped by copying it to
+# locale/policy/weights.json deliberately, not by running the trainer.
+generated/policy.json
