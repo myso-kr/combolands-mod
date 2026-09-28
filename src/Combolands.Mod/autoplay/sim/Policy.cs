@@ -36,12 +36,23 @@ namespace Combolands.Mod.Autoplay.Sim
         // So the points term is FIXED at one and everything else is priced against
         // it. Now the weights mean something a person can argue with: potentialFlat
         // is how many points of future setup are worth one point today.
-        internal const int Size = 4;
+        internal const int Size = 5;
 
         internal float PotentialFlat;   // future points, valued against present ones
         internal float PotentialUrgent; // ...and how that changes when behind pace
         internal float RoomFlat;        // elbow room, priced in weeks of scoring
         internal float RoomUrgent;
+
+        // How bad a draw has to be before a reroll is worth spending on it, as a
+        // fraction of what a draw usually offers on this board. 0.7 means "reroll
+        // anything below seventy percent of normal".
+        //
+        // This is the one weight that changes WHICH CARDS are seen rather than where
+        // they go, and three training runs said the same thing about the others: the
+        // draw dominates the placement. A reroll costs no week - the choice bar is
+        // refilled and the turn does not end - so an unspent reroll at the end of a
+        // run is a placement that was never improved.
+        internal float RerollBelow;
 
         // A starting point that already plays sensibly, so training improves on
         // something rather than starting from noise - and so the mod has usable
@@ -58,12 +69,13 @@ namespace Combolands.Mod.Autoplay.Sim
                 PotentialUrgent = -0.45f,
                 RoomFlat = 0.03f,
                 RoomUrgent = -0.03f,
+                RerollBelow = 0.70f,
             };
         }
 
         internal float[] ToVector()
         {
-            return new[] { PotentialFlat, PotentialUrgent, RoomFlat, RoomUrgent };
+            return new[] { PotentialFlat, PotentialUrgent, RoomFlat, RoomUrgent, RerollBelow };
         }
 
         internal static Policy FromVector(float[] w)
@@ -75,6 +87,7 @@ namespace Combolands.Mod.Autoplay.Sim
             {
                 PotentialFlat = w[0], PotentialUrgent = w[1],
                 RoomFlat = w[2], RoomUrgent = w[3],
+                RerollBelow = w[4],
             };
         }
 
@@ -198,7 +211,7 @@ namespace Combolands.Mod.Autoplay.Sim
 
         internal static readonly string[] Names =
         {
-            "potentialFlat", "potentialUrgent", "roomFlat", "roomUrgent",
+            "potentialFlat", "potentialUrgent", "roomFlat", "roomUrgent", "rerollBelow",
         };
 
         public override string ToString()

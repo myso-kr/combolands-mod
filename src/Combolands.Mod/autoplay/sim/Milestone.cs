@@ -41,6 +41,12 @@ namespace Combolands.Mod.Autoplay.Sim
         // them rather than hoarding, which is what Items.ShouldSpend decides in game.
         internal int Blueprints;
 
+        // Rerolls in hand. Spending one refills the choice bar without ending the
+        // turn - `ConsumablesPanel.PressRerollButton` calls
+        // `GameController.ShowNewBuildingChoices` and nothing else - so a reroll is
+        // the one lever that changes WHICH cards are seen rather than where they go.
+        internal int Rerolls;
+
         internal Milestone(Rules rules, Map map, long required, int weeks, int[] pool)
         {
             if (rules == null) throw new ArgumentNullException("rules");
@@ -60,6 +66,7 @@ namespace Combolands.Mod.Autoplay.Sim
             public long Required;
             public int WeeksUsed;
             public int Placements;
+            public int Rerolls;
 
             // Margin as a fraction of the target: +0.2 is twenty percent clear, -0.1
             // is ten percent short. The trainer needs this rather than the bare
@@ -89,6 +96,7 @@ namespace Combolands.Mod.Autoplay.Sim
                 outcome.WeeksUsed = week + 1;
 
                 Draw(offers, random);
+                Reroll(policy, offers, random, (long)score, week, lastWeek, ref outcome);
 
                 // Free placements first. A blueprint spent before the week's real
                 // building is a blueprint the real building can be placed next to.
@@ -124,6 +132,49 @@ namespace Combolands.Mod.Autoplay.Sim
             return outcome;
         }
 
+        // Spend rerolls on a draw that is worse than this board usually offers.
+        //
+        // "Usually" is learned as the run goes: the mean best-draw value so far. That
+        // is better than any fixed threshold could be, because what a good draw is
+        // worth depends entirely on the board - three hundred points is a fine week
+        // on milestone one and a wasted one on milestone six - and it needs no
+        // knowledge of the pool, which the game does not expose anyway.
+        //
+        // The first draw of a milestone has nothing to compare against and is kept.
+        private void Reroll(Policy policy, List<int> offers, Random random,
+                            long score, int week, double lastWeek, ref Outcome outcome)
+        {
+            while (Rerolls > 0)
+            {
+                var value = BestValue(policy, offers, score, week, lastWeek);
+
+                if (_draws > 0 && value >= (_meanDraw / _draws) * policy.RerollBelow) break;
+                if (_draws == 0) break;
+
+                Rerolls--;
+                outcome.Rerolls++;
+                Draw(offers, random);
+            }
+
+            // Counted after any reroll, so the average describes the draws actually
+            // played rather than the ones thrown away - otherwise rerolling drags the
+            // benchmark down and the next draw looks good by comparison.
+            _meanDraw += BestValue(policy, offers, score, week, lastWeek);
+            _draws++;
+        }
+
+        private double _meanDraw;
+        private int _draws;
+
+        // The best placement on offer, by the policy's own reckoning. The same number
+        // Choose ranks on, which is the point: a draw is worth what the best thing
+        // you can do with it is worth.
+        private double BestValue(Policy policy, IList<int> offers, long score, int week, double lastWeek)
+        {
+            int tag, x, y;
+            return Choose(policy, offers, score, week, lastWeek, out tag, out x, out y, out var best) ? best : 0;
+        }
+
         private void Draw(List<int> into, Random random)
         {
             into.Clear();
@@ -146,7 +197,14 @@ namespace Combolands.Mod.Autoplay.Sim
         internal bool Choose(Policy policy, IList<int> offers, long score, int week, double lastWeek,
                              out int tag, out int x, out int y)
         {
-            tag = 0; x = 0; y = 0;
+            double ignored;
+            return Choose(policy, offers, score, week, lastWeek, out tag, out x, out y, out ignored);
+        }
+
+        internal bool Choose(Policy policy, IList<int> offers, long score, int week, double lastWeek,
+                             out int tag, out int x, out int y, out double bestValue)
+        {
+            tag = 0; x = 0; y = 0; bestValue = 0;
 
             var situation = Situation.From(score, Required, Weeks - week, lastWeek);
             var best = double.NegativeInfinity;
@@ -172,6 +230,7 @@ namespace Combolands.Mod.Autoplay.Sim
                         if (value <= best) continue;
 
                         best = value;
+                        bestValue = value;
                         tag = candidate; x = tx; y = ty;
                         found = true;
                     }

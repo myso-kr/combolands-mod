@@ -238,6 +238,8 @@ earned is a different question, and `AutoplayBlocksAchievements` is there for it
 | `AutoplayShopMinGold` | `25` | below this it takes the skip reward instead |
 | `AutoplayShopReserve` | `0` | gold it will not spend |
 | `AutoplayShopMinRarity` | `2` | lowest rarity worth buying |
+| `AutoplayRerolls` | `true` | spend rerolls on a bad draw; a reroll costs no week |
+| `AutoplayRerollBelow` | `0.7` | how bad, as a fraction of what a draw is normally worth here. `0` never rerolls |
 
 ## Building
 

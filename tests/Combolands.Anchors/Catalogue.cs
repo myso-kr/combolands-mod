@@ -422,6 +422,19 @@ namespace Combolands.Anchors
             },
             new Anchor
             {
+                Id = "P23", What = "rerolling a bad draw",
+                // A reroll refills the choice bar without ending the turn, which is
+                // the only lever autoplay has on WHICH cards it sees - and the
+                // measurements say the cards matter more than the placement.
+                Type = "UI.ConsumablesPanel",
+                Members = new[]
+                {
+                    Member.Method("PressRerollButton", 0),
+                    Member.Property("Rerolls", on: "GameState.ScoreController"),
+                },
+            },
+            new Anchor
+            {
                 Id = "P22", What = "is it on the board",
                 Type = "Entities.Building",
                 Members = new[] { Member.Property("Tile") },

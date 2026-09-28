@@ -66,6 +66,11 @@ namespace Combolands.Mod.Autoplay
             Refused.Clear();
             Hopeless.Clear();
             _refusedFor = null;
+
+            // What a draw is normally worth belongs to one run on one board. Carrying
+            // it into the next would benchmark a first milestone against a sixth, and
+            // then either reroll everything or nothing.
+            Rerolls.Forget();
         }
 
         internal static void Stop()
@@ -257,6 +262,19 @@ namespace Combolands.Mod.Autoplay
 
                 bestScore = picks[0].Score.Total;
                 bestOffer = i;
+            }
+
+            // Before committing to the best of a bad draw: is it bad enough to spend
+            // a reroll on? A reroll refills the bar and does not end the turn, so the
+            // only cost is the reroll itself - and one left unspent at the end of a
+            // run bought nothing at all.
+            if (bestOffer >= 0 && Rerolls.Consider(bestScore))
+            {
+                // The bar we just measured no longer exists. Next tick reads the new
+                // one; acting on this one now would click a button that has been
+                // replaced.
+                _last = Rerolls.Last;
+                return true;
             }
 
             if (bestOffer < 0)

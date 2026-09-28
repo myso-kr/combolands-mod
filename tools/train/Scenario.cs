@@ -25,6 +25,8 @@ namespace Combolands.Train
     {
         internal Milestone Milestone;
         internal string Describe;
+        internal int Rerolls;
+        internal int Blueprints;
 
         // Buildings worth offering: the ones that score something. A pool of inert
         // scenery would make every policy look identical, because every choice would
@@ -121,11 +123,23 @@ namespace Combolands.Train
             var demand = 0.9 + random.NextDouble() * 0.7;       // 0.9x to 1.6x
             var required = (long)Math.Max(1, reachable * demand);
 
+            // Rerolls and blueprints in hand. A run carries some of both by the time
+            // it is a few milestones deep, and a policy fitted on a run that never
+            // had either would never learn to spend them.
+            var rerolls = random.Next(4);
+            var blueprints = random.Next(3);
+
             return new Scenario
             {
-                Milestone = new Milestone(rules, map, required, weeks, pool),
-                Describe = string.Format("{0}x{0} board, {1} weeks, {2:N0} points, {3} placed",
-                                         size, weeks, required, map.Count),
+                Milestone = new Milestone(rules, map, required, weeks, pool)
+                {
+                    Rerolls = rerolls,
+                    Blueprints = blueprints,
+                },
+                Describe = string.Format("{0}x{0} board, {1} weeks, {2:N0} points, {3} placed, {4} rerolls",
+                                         size, weeks, required, map.Count, rerolls),
+                Rerolls = rerolls,
+                Blueprints = blueprints,
             };
         }
 

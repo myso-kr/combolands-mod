@@ -99,6 +99,46 @@ cost by the number of candidates and divides the expected value by roughly the s
 It also cannot loop, where the game's own guard — excluding whoever woke you — only
 stops cycles of length two.
 
+## The draw beats the placement
+
+Three training runs said the same thing: the placement weights do not move the
+clear rate. Fitted against 150 milestones and judged on 150 it had never seen, the
+best policy the search could find cleared exactly as many as the hand-written one,
+twice over — and the third run drove both remaining weights to about zero, which is
+a search saying the terms are redundant.
+
+The explanation is the same each time. **Which three cards the bar offers dominates
+where they go.** A placement policy cannot out-play a bad draw.
+
+Which points at the one lever on the draw itself. `ConsumablesPanel.PressRerollButton`
+spends a reroll, refills the bar through `GameController.ShowNewBuildingChoices`, and
+does **not** end the turn — so a reroll is free in the only currency a milestone is
+short of, and one left unspent at the end of a run bought nothing at all.
+
+Measured rather than assumed, on identical milestones with rerolling the only
+difference:
+
+| | cleared | margin |
+|---|---|---|
+| never rerolling | 60/150 | −14.2% |
+| rerolling below 0.7 of normal | 61/150 | **−12.3%** |
+
+Margin is the more trustworthy half of that: clear rate moves in whole milestones
+and margin does not, so 1.9 points of the target is a firmer result than one extra
+clear.
+
+**The threshold is learned, not fixed.** Three hundred points is a good week on the
+first milestone and a wasted one on the sixth, and the game never says which pool it
+is drawing from — so "normal" is the running mean of the draws actually played on
+this board. Rejected draws are deliberately left out of that mean: counting them
+would drag the benchmark down, make the next draw look good by comparison, and
+quietly stop the threshold ever firing again.
+
+Skipping is the other half of the same screen and is not worth automating.
+`SkipBuildingPanel.PressSkipButton` grants one gold, reroll or remove and then calls
+`EndTurn` — it spends a whole week to gain a single resource, which is almost never
+right while chasing a target.
+
 ## Room is a modifier, not a value
 
 Worth recording because it was got wrong twice in the same way.

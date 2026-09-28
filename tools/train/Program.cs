@@ -74,6 +74,20 @@ namespace Combolands.Train
             Console.WriteLine("baseline (hand-written): {0}", baseline);
             Console.WriteLine("  {0}\n", start);
 
+            // Does spending rerolls help at all?
+            //
+            // Three training runs said the placement weights do not move the clear
+            // rate, and all three pointed at the same explanation: which cards the
+            // bar offers dominates where they go. A reroll is the only lever on that,
+            // and it costs no week. This measures it against the identical milestones
+            // rather than assuming it - the same policy with rerolling switched off.
+            var never = Policy.Default();
+            never.RerollBelow = 0f;
+
+            var withoutRerolls = Judge(never, scenarios, options.Seed);
+            Console.WriteLine("without rerolling:       {0}", withoutRerolls);
+            Console.WriteLine("with (below {0:0.00} of normal): {1}\n", start.RerollBelow, baseline);
+
             var best = Fit(scenarios, options, start, baseline);
 
             var final = Judge(best, scenarios, options.Seed);
@@ -251,7 +265,11 @@ namespace Combolands.Train
                                               scenario.Milestone.Map.Clone(),
                                               scenario.Milestone.Required,
                                               scenario.Milestone.Weeks,
-                                              scenario.Milestone.Pool);
+                                              scenario.Milestone.Pool)
+                {
+                    Rerolls = scenario.Rerolls,
+                    Blueprints = scenario.Blueprints,
+                };
 
                 // Seeded per scenario, so every policy sees the same cards in the same
                 // order and the comparison is about play rather than luck.

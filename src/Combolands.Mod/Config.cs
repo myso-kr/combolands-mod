@@ -15,6 +15,8 @@ namespace Combolands.Mod
         private static MelonPreferences_Entry<int> _fontSize;
         private static MelonPreferences_Entry<string> _fontFile;
         private static MelonPreferences_Entry<float> _fontScale;
+        private static MelonPreferences_Entry<bool> _autoplayRerolls;
+        private static MelonPreferences_Entry<float> _autoplayRerollBelow;
         private static MelonPreferences_Entry<bool> _dumpStrings;
         private static MelonPreferences_Entry<bool> _dumpRules;
 
@@ -147,6 +149,11 @@ namespace Combolands.Mod
             _autoplayShopMinRarity = _cat.CreateEntry("AutoplayShopMinRarity", 2,
                 description: "Lowest rarity worth buying. 1 Common, 2 Uncommon, 3 Rare, 4 Masterwork, 5 Legendary.");
 
+            _autoplayRerolls = _cat.CreateEntry("AutoplayRerolls", true,
+                description: "Spend rerolls on a bad draw. A reroll refills the choice bar without ending the turn, so one left unspent at the end of a run bought nothing.");
+            _autoplayRerollBelow = _cat.CreateEntry("AutoplayRerollBelow", 0.7f,
+                description: "How bad a draw has to be before rerolling, as a fraction of what a draw is normally worth on this board. 0.7 rerolls anything below seventy percent of normal; 0 never rerolls.");
+
             _dumpStrings = _cat.CreateEntry("DumpStrings", false,
                 description: "Developer: write every LocalizedStringAsset to generated/strings.en.json on first scene.");
 
@@ -164,6 +171,9 @@ namespace Combolands.Mod
         internal static int FontSamplingPointSize { get { return _fontSize.Value; } }
         internal static string FontFile { get { return _fontFile.Value; } }
         internal static float FontScale { get { return _fontScale.Value; } }
+        internal static bool AutoplayRerolls { get { return _autoplayRerolls.Value; } }
+        internal static float AutoplayRerollBelow { get { return Mathf.Clamp(_autoplayRerollBelow.Value, 0f, 1.5f); } }
+
         internal static bool DumpStrings { get { return _dumpStrings.Value; } }
         internal static bool DumpRules { get { return _dumpRules.Value; } }
 

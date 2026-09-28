@@ -171,6 +171,7 @@ bypass has to be rebuilt against the method body.
 | P20 | placing, for real | `PlacingBuilding.OnUpdate(Vector3, Vector2Int, Tile, bool)` · `PlaceCurrentBuilding(Vector2Int)` · `_canPlaceCurrentBuilding` | **autoplay cannot place anything** | `autoplay/Exec.cs` |
 | P21 | choosing, for real | `UI.BuildingChoiceButton.OnPointerClick(PointerEventData)` | autoplay places but never picks | `autoplay/Exec.cs` |
 | P22 | is it on the board | `Entities.Building.Tile` | autoplay throws whenever the cursor leaves the window | `autoplay/Exec.cs` |
+| P23 | rerolling a bad draw | `UI.ConsumablesPanel.PressRerollButton()` · `ScoreController.Rerolls` | autoplay plays whatever it is dealt | `autoplay/Rerolls.cs` |
 | P19 | piece name | `Entities.GamePieceDataHolder.GetDataFor(GameTag)` → `_BaseData.Name` | the panel lists tags instead of names | `autoplay/Offers.cs` |
 | P11 | range shape | ``Library.Grid.GridDrawingAlgorithms.GetFilledCircle`` — `dx*dx + dy*dy < r*r + r` — *observed*, copied not called | every highlight is subtly wrong | `autoplay/Snapshot.cs` |
 | P12 | declared targets | `GamePiece.TargetTags` · `_GamePieceBehaviour.GetScoreForTag` · `GamePieceLocalValues.TargetCategories` · `GetScoreForTargetCategory` | **the helper stops knowing what a building wants** and falls back to bare adjacency | `autoplay/Board.cs` |
