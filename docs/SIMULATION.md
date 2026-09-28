@@ -211,11 +211,21 @@ other weights said. Fixing the points term at one removes the redundant degree o
 freedom and makes the rest answerable: `potentialFlat` is how many points of future
 set-up are worth one point scored today.
 
-**And then the fitting did not beat the hand-written weights.** On the 150 milestones
-it was fitted to, the search found 55 clears against 52 — and on 150 it had never
-seen, both cleared 45, with the fitted policy fractionally worse on margin. That is
-overfitting, not improvement, and `tools/train` refuses to write a policy that fails
-the held-out comparison. So the shipped weights are the hand-written ones.
+**And then the fitting did not beat the hand-written weights — four times.** On the
+150 milestones it was fitted to the search found 55 clears against 52; on 150 it had
+never seen, both cleared 45. Three further runs, including one with the reroll
+threshold in the vector, ended the same way: identical clears on the holdout, margin
+differences inside the noise. So the shipped weights are the hand-written ones.
+
+Two things had to be tightened before that verdict could be trusted:
+
+- The fourth run tied on clears, won by **a tenth of a point** of margin, and that
+  was enough to overwrite the shipped weights. "Not worse" is too low a bar across a
+  hundred and fifty noisy episodes, so the trainer now wants a visible improvement:
+  one more milestone cleared, or a point of margin.
+- It also wrote straight to the path the mod loads, so a `git add -A` committed a
+  vector produced by a four-policy smoke run. It writes to `generated/` now, which is
+  not committed, and shipping a policy is a copy you make on purpose.
 
 This is not a failed experiment; it is the experiment answering. Two things follow
 from it:
