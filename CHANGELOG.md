@@ -9,6 +9,71 @@ type and member signatures inside `Assembly-CSharp.dll`, so "which game" is not
 background information — it is the first question any bug report has to answer. See
 [`docs/ANCHORS.md`](docs/ANCHORS.md).
 
+## 0.5.0
+
+Verified against Steam build `24989173` / game `v1.0.6` (Unity 6000.0.66f2).
+
+Autoplay stopped guessing what a placement is worth and started computing it.
+
+### The simulator
+
+The plan document used to say a placement's score could not be known without
+committing to it, because Combolands scores through cascading triggers that mutate
+live state. That was wrong, and missed milestones were what it cost.
+`_BuildingBehaviour.GetScorePreview` is a pure function, the game's own
+`MaxPossibleScores` already calls it for every building, and end of turn scores all
+of them - so a week is arithmetic.
+
+Reproducing it found four errors in the old valuation, every one of them making a
+target look closer than it was:
+
+- **One neighbourhood, not two.** `_scorePreviewMode` is `Adjacent` **or** `InRange`
+  **or** `SelfOnly`. The old code counted targets in range *or* adjacent for every
+  building, crediting adjacency scorers with their whole range
+- **No week multiplier.** A placement with eight weeks left is worth eight times the
+  same placement on the last one. The old ranking treated them as equal
+- **Cooldowns ignored.** Woodcutter pays eighty a tree every *third* week; read as
+  weekly income that is a threefold overstatement
+- **Target precedence.** A tag match precludes a category match, which precludes a
+  rarity match, and a tile pays once
+
+It also models what a placement is worth beyond its own score: **blueprints**, which
+place without ending the turn, and **trigger cascades** - the eighteen buildings that
+wake their neighbours, whose woken targets score again ignoring their own cooldown.
+Because the game chooses who to wake at random, that is computed as an expectation.
+
+The rule set is read out of a running game once (`DumpRules = true`) into
+`generated/rules.json`, which is **not** distributed. 167 buildings; 137 reproduced
+exactly, 30 marked approximate rather than quietly modelled wrong. The overlay prints
+real points now - `+840/wk`, checkable against the game's own display - and says
+`[simulated]` or `[estimated]` so you know which you are looking at.
+
+### Rerolling
+
+Autoplay spends rerolls on a bad draw. A reroll refills the choice bar **without
+ending the turn**, so one left unspent at the end of a run bought nothing.
+
+Four rounds of fitting the placement weights failed to beat the hand-written ones on
+milestones they had not been fitted to. Rerolling, which changes the draw rather than
+the placement, moved the same measurement by four points of clear rate and four of
+margin. The threshold is learned per run - what a good draw is worth depends entirely
+on the board - and is `AutoplayRerollBelow`.
+
+### Council requests
+
+Autoplay chooses a request it can actually finish rather than the first one offered,
+takes the free first reroll when all three are hopeless, and **always collects the
+reward** - the end-of-milestone routine disables input and waits on an unclaimed one
+forever, so not claiming ends the run.
+
+### Under it
+
+- `tools/train` fits the policy against simulated milestones with no game involved,
+  and refuses to ship weights that are not meaningfully better on held-out milestones
+- `tests/Combolands.Anchors` checks all 61 anchors against an installed
+  `Assembly-CSharp.dll` as metadata in about fifty milliseconds
+- 91 unit tests, including the scoring reproduction and the cascade expectation
+
 ## 0.4.0
 
 Verified against Steam build `24989173` / game `v1.0.6` (Unity 6000.0.66f2).

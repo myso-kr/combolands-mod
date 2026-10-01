@@ -9,8 +9,9 @@ Korean language patch, cheat widget, and autoplay for the Steam roguelike citybu
 
 > **Status: all three work.** Every string the game has is translated and renders in
 > the retail build, the cheat panel is on F8, and autoplay plays a run on its own —
-> placing, choosing, shopping, taking council requests and getting past every screen
-> between milestones. **No game file is modified**: the loader and the mod are added
+> placing, choosing, rerolling a bad draw, shopping, taking council requests and
+> getting past every screen between milestones. It computes what a placement is
+> worth from the game's own scoring rather than estimating it. **No game file is modified**: the loader and the mod are added
 > beside them and uninstall by deletion.
 >
 > Verified against Steam build `24989173` / game `v1.0.6`.
@@ -49,7 +50,7 @@ loader, and vendoring it would make their bug reports ours.
    nowhere.
 
 3. Start the game. `MelonLoader/Latest.log` should say
-   `Combolands Mod v0.4.0` and `i18n: loaded 1078 strings from ko`.
+   `Combolands Mod v0.5.0` and `i18n: loaded 1078 strings from ko`.
 
 Verify the download against the `.sha256` published beside it:
 
@@ -274,8 +275,8 @@ COMBOLANDS_DIR="D:\SteamLibrary\steamapps\common\Combolands" dotnet test tests/C
 ```
 python tools/version.py --check      # csproj, MelonInfo and CHANGELOG agree
 python tools/package.py              # build, verify, zip, checksum
-git tag v0.4.0 && git push origin v0.4.0
-python tools/package.py --publish v0.4.0
+git tag v0.5.0 && git push origin v0.5.0
+python tools/package.py --publish v0.5.0
 ```
 
 The tag starts a workflow that runs the tests, composes the release notes and opens
